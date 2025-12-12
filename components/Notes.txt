@@ -1,0 +1,14 @@
+<div data-component="top-bar"></div>
+<div data-component="header"></div>
+<div data-component="nav"></div>
+
+<!-- your page content stays the same -->
+
+<div data-component="footer"></div>
+
+<script src="js/components.js"></script>
+<script src="js/main.js"></script>
+
+
+Resend:
+SomersetLegion228

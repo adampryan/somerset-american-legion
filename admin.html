@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel – Somerset American Legion Post 228</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --navy: #002868;
+            --red: #BF0A30;
+            --gold: #D4AF37;
+            --white: #ffffff;
+            --gray-100: #f5f5f5;
+            --gray-200: #e5e5e5;
+            --gray-600: #666;
+            --gray-800: #333;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background: var(--gray-100);
+            min-height: 100vh;
+        }
+        
+        /* Login Page */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .login-box {
+            background: var(--white);
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-box h1 {
+            color: var(--navy);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .login-box .subtitle {
+            text-align: center;
+            color: var(--gray-600);
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--gray-200);
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--navy);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--navy);
+            color: var(--white);
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            background: #001a4d;
+        }
+        
+        .btn-danger {
+            background: var(--red);
+            color: var(--white);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: var(--white);
+        }
+        
+        .btn-warning {
+            background: #ff9800;
+            color: var(--white);
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        
+        .error-msg {
+            background: #fee;
+            color: var(--red);
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        /* Dashboard */
+        .dashboard { display: none; }
+        
+        .header {
+            background: var(--navy);
+            color: var(--white);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-user span {
+            color: var(--gold);
+        }
+        
+        .btn-logout {
+            background: transparent;
+            border: 1px solid var(--white);
+            color: var(--white);
+            padding: 8px 16px;
+        }
+        
+        .btn-logout:hover {
+            background: var(--white);
+            color: var(--navy);
+        }
+        
+        .tabs {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            padding: 0 30px;
+        }
+        
+        .tab {
+            padding: 15px 25px;
+            border: none;
+            background: none;
+            font-size: 16px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            color: var(--gray-600);
+        }
+        
+        .tab:hover {
+            color: var(--navy);
+        }
+        
+        .tab.active {
+            color: var(--navy);
+            border-bottom-color: var(--gold);
+            font-weight: 600;
+        }
+        
+        .content {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .panel {
+            display: none;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .panel.active { display: block; }
+        
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-header h2 {
+            color: var(--navy);
+        }
+        
+        .panel-body {
+            padding: 20px;
+        }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        th {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        
+        tr:hover {
+            background: var(--gray-100);
+        }
+        
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-pending { background: #fff3cd; color: #856404; }
+        .badge-approved { background: #cce5ff; color: #004085; }
+        .badge-paid { background: #d4edda; color: #155724; }
+        .badge-cancelled { background: #f8d7da; color: #721c24; }
+        .badge-expired { background: var(--gray-200); color: var(--gray-600); }
+        .badge-refunded { background: #e2e3f3; color: #383d75; }
+        .badge-forfeited { background: #f5d6c6; color: #8a4429; }
+        
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--white);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            color: var(--navy);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-600);
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: var(--gray-200);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .tabs {
+                overflow-x: auto;
+                padding: 0 15px;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 8px;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div class="login-container" id="loginPage">
+        <div class="login-box">
+            <h1><i class="fas fa-shield-alt"></i> Admin Login</h1>
+            <p class="subtitle">Somerset American Legion Post 228</p>
+            <div class="error-msg" id="loginError"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <header class="header">
+            <h1><i class="fas fa-shield-alt"></i> Post 228 Admin</h1>
+            <div class="header-user">
+                <span id="userName"></span>
+                <button class="btn btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab active" data-panel="rentals">
+                <i class="fas fa-calendar-alt"></i> Rentals
+            </button>
+            <button class="tab" data-panel="events">
+                <i class="fas fa-bullhorn"></i> Events
+            </button>
+            <button class="tab" data-panel="users" id="usersTab" style="display:none;">
+                <i class="fas fa-users"></i> Users
+            </button>
+        </div>
+        
+        <div class="content">
+            <!-- Rentals Panel -->
+            <div class="panel active" id="rentalsPanel">
+                <div class="panel-header">
+                    <h2>Hall Rentals</h2>
+                </div>
+                <div class="panel-body">
+                    <table id="rentalsTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Event Type</th>
+                                <th>Contact</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="empty-state" id="rentalsEmpty" style="display:none;">
+                        <i class="fas fa-calendar-times"></i>
+                        <p>No rental requests yet</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Events Panel -->
+            <div class="panel" id="eventsPanel">
+                <div class="panel-header">
+                    <h2>Post Events</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showEventModal()">
+                        <i class="fas fa-plus"></i> Add Event
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <table id="eventsTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Title</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="empty-state" id="eventsEmpty" style="display:none;">
+                        <i class="fas fa-calendar-plus"></i>
+                        <p>No events scheduled</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users Panel -->
+            <div class="panel" id="usersPanel">
+                <div class="panel-header">
+                    <h2>Officers</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showUserModal()">
+                        <i class="fas fa-user-plus"></i> Add Officer
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <table id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Alerts</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rental Detail Modal -->
+    <div class="modal-overlay" id="rentalModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Rental Details</h3>
+                <button class="modal-close" onclick="closeModal('rentalModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="rentalDetails"></div>
+            <div class="modal-footer" id="rentalActions"></div>
+        </div>
+    </div>
+
+    <!-- Event Modal -->
+    <div class="modal-overlay" id="eventModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="eventModalTitle">Add Event</h3>
+                <button class="modal-close" onclick="closeModal('eventModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="eventForm">
+                    <input type="hidden" id="eventId">
+                    <div class="form-group">
+                        <label for="eventTitle">Title</label>
+                        <input type="text" id="eventTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventDate">Date</label>
+                        <input type="date" id="eventDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventTime">Time</label>
+                        <input type="time" id="eventTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventDesc">Description</label>
+                        <textarea id="eventDesc" rows="3" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('eventModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEvent()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Officer</h3>
+                <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <div class="form-group">
+                        <label for="newUserName">Name</label>
+                        <input type="text" id="newUserName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newUserEmail">Email</label>
+                        <input type="email" id="newUserEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newUserPassword">Password</label>
+                        <input type="password" id="newUserPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newUserRole">Role</label>
+                        <select id="newUserRole" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;">
+                            <option value="officer">Officer</option>
+                            <option value="webmaster">Webmaster</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('userModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveUser()">Add Officer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://api.somersetamericanlegion.org';        let token = localStorage.getItem('legion_token');
+        let currentUser = JSON.parse(localStorage.getItem('legion_user') || 'null');
+
+        // Check auth on load
+        if (token && currentUser) {
+            showDashboard();
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.panel + 'Panel').classList.add('active');
+            });
+        });
+
+        // Login form
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+            
+            try {
+                const res = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    errorEl.textContent = data.error || 'Login failed';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+                
+                token = data.token;
+                currentUser = data.user;
+                localStorage.setItem('legion_token', token);
+                localStorage.setItem('legion_user', JSON.stringify(currentUser));
+                showDashboard();
+            } catch (err) {
+                errorEl.textContent = 'Connection error. Please try again.';
+                errorEl.style.display = 'block';
+            }
+        });
+
+        function showDashboard() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('userName').textContent = currentUser.name;
+            
+            // Show users tab for webmaster only
+            if (currentUser.role === 'webmaster') {
+                document.getElementById('usersTab').style.display = 'block';
+            }
+            
+            loadRentals();
+            loadEvents();
+            if (currentUser.role === 'webmaster') {
+                loadUsers();
+            }
+        }
+
+        function logout() {
+            token = null;
+            currentUser = null;
+            localStorage.removeItem('legion_token');
+            localStorage.removeItem('legion_user');
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('dashboard').style.display = 'none';
+        }
+
+        // API helper
+        async function api(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            const res = await fetch(`${API_URL}${endpoint}`, options);
+            return res.json();
+        }
+
+        // Load data
+        async function loadRentals() {
+            const rentals = await api('/api/admin/rentals');
+            const tbody = document.querySelector('#rentalsTable tbody');
+            const empty = document.getElementById('rentalsEmpty');
+            
+            if (!rentals.length) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            
+            empty.style.display = 'none';
+            tbody.innerHTML = rentals.map(r => `
+                <tr>
+                    <td>${formatDate(r.event_date)}</td>
+                    <td>${r.event_type}</td>
+                    <td>${r.contact_name}<br><small>${r.contact_email}</small></td>
+                    <td><span class="badge badge-${r.status}">${r.status}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-sm" onclick="viewRental(${r.id})" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${r.status === 'pending' || r.status === 'approved' ? `
+                            <button class="btn btn-sm btn-warning" onclick="cancelRental(${r.id})" title="Cancel">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                        ` : ''}
+                        <button class="btn btn-sm btn-danger" onclick="deleteRental(${r.id})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadEvents() {
+            const events = await api('/api/admin/events');
+            const tbody = document.querySelector('#eventsTable tbody');
+            const empty = document.getElementById('eventsEmpty');
+            
+            if (!events.length) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            
+            empty.style.display = 'none';
+            tbody.innerHTML = events.map(e => `
+                <tr>
+                    <td>${formatDate(e.event_date)}</td>
+                    <td>${e.event_time || '-'}</td>
+                    <td>${e.title}</td>
+                    <td class="actions">
+                        <button class="btn btn-sm" onclick="editEvent(${e.id}, '${e.title}', '${e.event_date}', '${e.event_time || ''}', '${(e.description || '').replace(/'/g, "\\'")}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteEvent(${e.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadUsers() {
+            const users = await api('/api/admin/users');
+            const tbody = document.querySelector('#usersTable tbody');
+            
+            tbody.innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.name}</td>
+                    <td>${u.email}</td>
+                    <td>${u.role}</td>
+                    <td>
+                        <button class="btn btn-sm ${u.email_notifications ? 'btn-success' : ''}" 
+                                onclick="toggleNotifications(${u.id}, ${!u.email_notifications})"
+                                title="${u.email_notifications ? 'Notifications ON - Click to disable' : 'Notifications OFF - Click to enable'}">
+                            <i class="fas fa-${u.email_notifications ? 'bell' : 'bell-slash'}"></i>
+                        </button>
+                    </td>
+                    <td class="actions">
+                        ${u.id !== currentUser.id ? `
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : '<span style="color:#666">You</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function toggleNotifications(userId, enabled) {
+            await api(`/api/admin/users/${userId}/notifications`, 'PUT', { enabled });
+            loadUsers();
+        }
+
+        // Rental functions
+        let rentalsData = [];
+        async function viewRental(id) {
+            const rentals = await api('/api/admin/rentals');
+            const rental = rentals.find(r => r.id === id);
+            if (!rental) return;
+            
+            document.getElementById('rentalDetails').innerHTML = `
+                <p><strong>Date:</strong> ${formatDate(rental.event_date)}</p>
+                <p><strong>Event Type:</strong> ${rental.event_type}</p>
+                <p><strong>Contact:</strong> ${rental.contact_name}</p>
+                <p><strong>Email:</strong> <a href="mailto:${rental.contact_email}">${rental.contact_email}</a></p>
+                <p><strong>Phone:</strong> <a href="tel:${rental.contact_phone}">${rental.contact_phone}</a></p>
+                <p><strong>Details:</strong> ${rental.details || 'None'}</p>
+                <p><strong>Status:</strong> <span class="badge badge-${rental.status}">${rental.status}</span></p>
+                ${rental.expires_at ? `<p><strong>Expires:</strong> ${new Date(rental.expires_at).toLocaleString()}</p>` : ''}
+            `;
+            
+            let actions = '';
+            if (rental.status === 'pending') {
+                actions = `
+                    <button class="btn btn-success" onclick="updateRentalStatus(${id}, 'approved')">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="btn btn-danger" onclick="updateRentalStatus(${id}, 'cancelled')">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                `;
+            } else if (rental.status === 'approved') {
+                actions = `
+                    <button class="btn btn-success" onclick="updateRentalStatus(${id}, 'paid')">
+                        <i class="fas fa-dollar-sign"></i> Mark Paid
+                    </button>
+                    <button class="btn btn-danger" onclick="updateRentalStatus(${id}, 'cancelled')">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                `;
+            } else if (rental.status === 'paid') {
+                actions = `
+                    <button class="btn btn-warning" onclick="updateRentalStatus(${id}, 'refunded')">
+                        <i class="fas fa-undo"></i> Cancel & Refund
+                    </button>
+                    <button class="btn btn-danger" onclick="updateRentalStatus(${id}, 'forfeited')">
+                        <i class="fas fa-ban"></i> Cancel (No Refund)
+                    </button>
+                `;
+            }
+            
+            document.getElementById('rentalActions').innerHTML = actions;
+            document.getElementById('rentalModal').classList.add('active');
+        }
+
+        async function updateRentalStatus(id, status) {
+            await api(`/api/admin/rentals/${id}`, 'PUT', { status });
+            closeModal('rentalModal');
+            loadRentals();
+        }
+
+        async function deleteRental(id) {
+            if (!confirm('Delete this rental request? This cannot be undone.')) return;
+            await api(`/api/admin/rentals/${id}`, 'DELETE');
+            loadRentals();
+        }
+
+        async function cancelRental(id) {
+            if (!confirm('Cancel this rental request?')) return;
+            await api(`/api/admin/rentals/${id}`, 'PUT', { status: 'cancelled' });
+            loadRentals();
+        }
+
+        // Event functions
+        function showEventModal() {
+            document.getElementById('eventModalTitle').textContent = 'Add Event';
+            document.getElementById('eventId').value = '';
+            document.getElementById('eventTitle').value = '';
+            document.getElementById('eventDate').value = '';
+            document.getElementById('eventTime').value = '';
+            document.getElementById('eventDesc').value = '';
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function editEvent(id, title, date, time, desc) {
+            document.getElementById('eventModalTitle').textContent = 'Edit Event';
+            document.getElementById('eventId').value = id;
+            document.getElementById('eventTitle').value = title;
+            document.getElementById('eventDate').value = date;
+            document.getElementById('eventTime').value = time;
+            document.getElementById('eventDesc').value = desc;
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        async function saveEvent() {
+            const id = document.getElementById('eventId').value;
+            const data = {
+                title: document.getElementById('eventTitle').value,
+                event_date: document.getElementById('eventDate').value,
+                event_time: document.getElementById('eventTime').value,
+                description: document.getElementById('eventDesc').value
+            };
+            
+            if (id) {
+                await api(`/api/admin/events/${id}`, 'PUT', data);
+            } else {
+                await api('/api/admin/events', 'POST', data);
+            }
+            
+            closeModal('eventModal');
+            loadEvents();
+        }
+
+        async function deleteEvent(id) {
+            if (!confirm('Delete this event?')) return;
+            await api(`/api/admin/events/${id}`, 'DELETE');
+            loadEvents();
+        }
+
+        // User functions
+        function showUserModal() {
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        async function saveUser() {
+            const data = {
+                name: document.getElementById('newUserName').value,
+                email: document.getElementById('newUserEmail').value,
+                password: document.getElementById('newUserPassword').value,
+                role: document.getElementById('newUserRole').value
+            };
+            
+            await api('/api/admin/users', 'POST', data);
+            closeModal('userModal');
+            document.getElementById('userForm').reset();
+            loadUsers();
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Remove this officer?')) return;
+            await api(`/api/admin/users/${id}`, 'DELETE');
+            loadUsers();
+        }
+
+        // Helpers
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        // Close modals on outside click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

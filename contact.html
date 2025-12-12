@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - Somerset American Legion Post 228</title>
+    <meta name="description" content="Contact Somerset American Legion Post 228. Located at 55 Roosevelt Ave, Somerset, MA 02726. Phone: 508-679-2380">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div data-component="top-bar"></div>
+    </div>
+
+    <div data-component="header"></div>
+
+    <div data-component="nav"></div>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Contact Us</h1>
+            <p class="breadcrumb"><a href="index.html">Home</a> / <a href="about.html">About</a> / Contact Us</p>
+        </div>
+    </section>
+
+    <!-- Page Content -->
+    <main class="page-content">
+        <div class="container">
+            <div class="content-grid">
+                <article class="primary-content">
+                    <h2>Get in Touch</h2>
+                    <p>We'd love to hear from you! Whether you have questions about membership, hall rentals, events, or anything else, please don't hesitate to reach out.</p>
+
+                    <div class="contact-methods" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+                        <div class="info-card">
+                            <div class="card-icon"><i class="fas fa-map-marker-alt"></i></div>
+                            <h3>Visit Us</h3>
+                            <p>55 Roosevelt Avenue<br>Somerset, MA 02726</p>
+                            <p>We kindly ask that you please call/email/message first to confirm officer availability.</p>
+                        </div>
+                        <div class="info-card">
+                            <div class="card-icon"><i class="fas fa-phone"></i></div>
+                            <h3>Call Us</h3>
+                            <p>508-679-2380</p>
+                        </div>
+                        <div class="info-card">
+                            <div class="card-icon"><i class="fas fa-envelope"></i></div>
+                            <h3>Email Us</h3>
+                            <p>somersetamericanlegion@gmail.com</p>
+                        </div>
+                    </div>
+
+                    <h2>Send Us a Message</h2>
+                    <form id="contact-form" class="contact-form" action="#" method="POST">
+                        <div class="form-group">
+                            <label for="name">Your Name *</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email Address *</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <input type="tel" id="phone" name="phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="subject">Subject *</label>
+                            <select id="subject" name="subject" required>
+                                <option value="">Select a subject...</option>
+                                <option value="membership">Membership Inquiry</option>
+                                <option value="hall-rental">Hall Rental</option>
+                                <option value="events">Events</option>
+                                <option value="volunteer">Volunteering</option>
+                                <option value="donation">Donations</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="message">Your Message *</label>
+                            <textarea id="message" name="message" rows="6" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </form>
+
+                    <h2 style="margin-top: 3rem;">Find Us</h2>
+                    <div class="map-container" style="margin-top: 1rem; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <iframe 
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2976.7866934511444!2d-71.14241508456308!3d41.74669357923282!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89e4f9d239a45a41%3A0xd0249ff48001f7ab!2s55+Roosevelt+Ave%2C+Somerset%2C+MA+02726!5e0!3m2!1sen!2sus!4v1484320996920"
+                            width="100%" 
+                            height="400" 
+                            style="border:0;" 
+                            allowfullscreen="" 
+                            loading="lazy"
+                            title="Map to Somerset American Legion Post 228">
+                        </iframe>
+                    </div>
+                </article>
+
+                <aside class="sidebar">
+                    <div class="widget">
+                        <h3 class="widget-title"><i class="fas fa-clock"></i> Hours</h3>
+                        <div style="padding: 1.5rem;">
+                            <p style="margin-bottom: 0.5rem;"><strong>General Meetings:</strong></p>
+                            <p style="margin-bottom: 1rem; color: #6c757d;">First Tuesday of each month</p>
+                            <p style="margin-bottom: 0.5rem;"><strong>Social Hours:</strong></p>
+                            <p style="color: #6c757d;">Contact us for current schedule</p>
+                        </div>
+                    </div>
+
+                    <div class="widget links-widget">
+                        <h3 class="widget-title"><i class="fas fa-link"></i> Quick Links</h3>
+                        <ul class="quick-links">
+                            <li><a href="membership-application.html"><i class="fas fa-file-alt"></i> Membership Application</a></li>
+                            <li><a href="rental-application.html"><i class="fas fa-clipboard-list"></i> Rental Application</a></li>
+                            <li><a href="events.html"><i class="fas fa-calendar"></i> Upcoming Events</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="widget">
+                        <h3 class="widget-title"><i class="fab fa-facebook-f"></i> Follow Us</h3>
+                        <div style="padding: 1.5rem; text-align: center;">
+                            <p style="margin-bottom: 1rem;">Stay connected with Somerset American Legion Post 228 on social media!</p>
+                            <a href="https://www.facebook.com/somersetamericanlegionpost228" target="_blank" class="btn btn-primary" style="margin-right: 0.5rem;"><i class="fab fa-facebook-f"></i> Facebook</a>
+                            <!-- <a href="https://www.twitter.com/somersetpost228" target="_blank" class="btn btn-primary"><i class="fab fa-twitter"></i> Twitter</a> -->
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </main>
+
+    <div data-component="footer"></div>
+
+    <script src="js/components.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

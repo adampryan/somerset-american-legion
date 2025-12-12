@@ -1,0 +1,40 @@
+(venv) adamryan@Adams-MacBook-Pro somerset-american-legion % wrangler d1 create legion-rentals
+
+
+
+ ⛅️ wrangler 4.54.0
+
+───────────────────
+
+✅ Successfully created DB 'legion-rentals' in region ENAM
+
+Created your new D1 database.
+
+
+
+To access your new D1 Database in your Worker, add the following snippet to your configuration file:
+
+{
+
+  "d1_databases": [
+
+    {
+
+      "binding": "legion_rentals",
+
+      "database_name": "legion-rentals",
+
+      "database_id": "2b929cf8-cf2b-47c8-987b-e7fefae19960"
+
+    }
+
+  ]
+
+}
+
+(venv) adamryan@Adams-MacBook-Pro somerset-american-legion 
+
+
+curl -X POST https://legion-api.good-llama.workers.dev/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"a.patrickryan@gmail.com","password":"legion228#"}'

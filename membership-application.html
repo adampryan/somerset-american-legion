@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membership Application - Somerset American Legion Post 228</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div data-component="top-bar"></div>
+    </div>
+
+    <div data-component="header"></div>
+
+    <div data-component="nav"></div>
+
+    <section class="page-header">
+        <div class="container">
+            <h1>Membership Application</h1>
+            <p class="breadcrumb"><a href="index.html">Home</a> / <a href="membership.html">Membership</a> / Application</p>
+        </div>
+    </section>
+
+    <main class="page-content">
+        <div class="container">
+            <article class="primary-content" style="max-width: 800px;">
+            <h2>Membership Application</h2>
+            <p>Ready to join Somerset American Legion Post 228? Complete the form below or <a href="https://www.legion.org/join" target="_blank">join online through the national website</a>.</p>
+            
+            <form id="membership-form" class="contact-form" action="#" method="POST">
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number *</label>
+                    <input type="tel" id="phone" name="phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="address">Mailing Address *</label>
+                    <textarea id="address" name="address" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="branch">Branch of Service *</label>
+                    <select id="branch" name="branch" required>
+                        <option value="">Select branch...</option>
+                        <option value="army">Army</option>
+                        <option value="navy">Navy</option>
+                        <option value="airforce">Air Force</option>
+                        <option value="marines">Marines</option>
+                        <option value="coastguard">Coast Guard</option>
+                        <option value="spaceforce">Space Force</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="service-dates">Dates of Service *</label>
+                    <input type="text" id="service-dates" name="service-dates" placeholder="e.g., Jan 2010 - Dec 2014" required>
+                </div>
+                <div class="form-group">
+                    <label for="comments">Additional Comments</label>
+                    <textarea id="comments" name="comments" rows="3"></textarea>
+                </div>
+                <p><em>* You will need to provide a copy of your DD-214 or other proof of service.</em></p>
+                <button type="submit" class="btn btn-primary">Submit Application</button>
+            </form>
+        </article>
+        </div>
+    </main>
+
+    <div data-component="footer"></div>
+    <script src="js/components.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

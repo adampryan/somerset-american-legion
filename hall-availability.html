@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hall Availability - Somerset American Legion Post 228</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div data-component="top-bar"></div>
+
+    <div data-component="header"></div>
+
+    <div data-component="nav"></div>
+
+    <section class="page-header">
+        <div class="container">
+            <h1>Hall Availability</h1>
+            <p class="breadcrumb"><a href="index.html">Home</a> / <a href="hall-rental.html">Hall Rental</a> / Availability</p>
+        </div>
+    </section>
+
+    <main class="page-content">
+        <div class="container">
+            
+            <!-- Full Width Calendar Section -->
+            <div id="rental-calendar-app">
+                <style>
+                    #rental-calendar-app {
+                        font-family: 'Source Sans 3', sans-serif;
+                        margin-bottom: 40px;
+                    }
+                    
+                    .calendar-container {
+                        display: grid;
+                        grid-template-columns: 1.2fr 0.8fr;
+                        gap: 30px;
+                        margin: 30px 0;
+                    }
+                    
+                    @media (max-width: 1000px) {
+                        .calendar-container {
+                            grid-template-columns: 1fr;
+                        }
+                    }
+                    
+                    /* Calendar Styles */
+                    .calendar {
+                        background: #fff;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+                        overflow: hidden;
+                    }
+                    
+                    .calendar-header {
+                        background: #002868;
+                        color: #fff;
+                        padding: 20px 25px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    
+                    .calendar-header h3 {
+                        margin: 0;
+                        font-size: 1.4rem;
+                    }
+                    
+                    .calendar-nav {
+                        display: flex;
+                        gap: 10px;
+                    }
+                    
+                    .calendar-nav button {
+                        background: rgba(255,255,255,0.2);
+                        border: none;
+                        color: #fff;
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    }
+                    
+                    .calendar-nav button:hover {
+                        background: rgba(255,255,255,0.3);
+                    }
+                    
+                    .calendar-grid {
+                        display: grid;
+                        grid-template-columns: repeat(7, 1fr);
+                    }
+                    
+                    .calendar-day-header {
+                        padding: 12px;
+                        text-align: center;
+                        font-weight: 600;
+                        background: #f5f5f5;
+                        font-size: 13px;
+                        color: #666;
+                    }
+                    
+                    .calendar-day {
+                        padding: 10px;
+                        min-height: 85px;
+                        border: 1px solid #eee;
+                        font-size: 14px;
+                        position: relative;
+                        cursor: pointer;
+                        transition: background 0.2s;
+                    }
+                    
+                    .calendar-day:hover {
+                        background: #f9f9f9;
+                    }
+                    
+                    .calendar-day.other-month {
+                        color: #ccc;
+                        background: #fafafa;
+                    }
+                    
+                    .calendar-day.today {
+                        background: #fffde7;
+                    }
+                    
+                    .calendar-day.past {
+                        color: #ccc;
+                        cursor: not-allowed;
+                    }
+                    
+                    .calendar-day.booked {
+                        background: #ffebee;
+                        cursor: not-allowed;
+                    }
+                    
+                    .calendar-day.pending {
+                        background: #fff8e1;
+                    }
+                    
+                    .calendar-day .day-number {
+                        font-weight: 600;
+                        margin-bottom: 4px;
+                        font-size: 15px;
+                    }
+                    
+                    .calendar-day .event-dot {
+                        display: inline-block;
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                        margin-right: 4px;
+                    }
+                    
+                    .event-dot.rental-paid { background: #BF0A30; }
+                    .event-dot.rental-approved { background: #ff9800; }
+                    .event-dot.rental-pending { background: #ffc107; }
+                    .event-dot.post-event { background: #002868; }
+                    
+                    .calendar-day .event-label {
+                        font-size: 11px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        display: block;
+                        margin-top: 2px;
+                    }
+                    
+                    .calendar-legend {
+                        display: flex;
+                        gap: 20px;
+                        padding: 15px 25px;
+                        background: #f5f5f5;
+                        flex-wrap: wrap;
+                        font-size: 14px;
+                    }
+                    
+                    .legend-item {
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    
+                    /* Form Styles */
+                    .rental-form-container {
+                        background: #fff;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+                        overflow: hidden;
+                        height: fit-content;
+                    }
+                    
+                    .rental-form-header {
+                        background: #002868;
+                        color: #fff;
+                        padding: 20px 25px;
+                    }
+                    
+                    .rental-form-header h3 {
+                        margin: 0;
+                        font-size: 1.4rem;
+                    }
+                    
+                    .rental-form {
+                        padding: 25px;
+                    }
+                    
+                    .form-group {
+                        margin-bottom: 20px;
+                    }
+                    
+                    .form-group label {
+                        display: block;
+                        margin-bottom: 6px;
+                        font-weight: 600;
+                        color: #333;
+                    }
+                    
+                    .form-group input,
+                    .form-group select,
+                    .form-group textarea {
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #e5e5e5;
+                        border-radius: 4px;
+                        font-size: 16px;
+                        font-family: inherit;
+                    }
+                    
+                    .form-group input:focus,
+                    .form-group select:focus,
+                    .form-group textarea:focus {
+                        outline: none;
+                        border-color: #002868;
+                    }
+                    
+                    .form-group small {
+                        color: #666;
+                        font-size: 12px;
+                    }
+                    
+                    .btn-submit {
+                        background: #BF0A30;
+                        color: #fff;
+                        border: none;
+                        padding: 14px 28px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        width: 100%;
+                        transition: background 0.2s;
+                    }
+                    
+                    .btn-submit:hover {
+                        background: #9a0827;
+                    }
+                    
+                    .btn-submit:disabled {
+                        background: #ccc;
+                        cursor: not-allowed;
+                    }
+                    
+                    .form-message {
+                        padding: 15px;
+                        border-radius: 4px;
+                        margin-bottom: 20px;
+                        display: none;
+                    }
+                    
+                    .form-message.success {
+                        background: #d4edda;
+                        color: #155724;
+                        display: block;
+                    }
+                    
+                    .form-message.error {
+                        background: #f8d7da;
+                        color: #721c24;
+                        display: block;
+                    }
+                    
+                    .selected-date-display {
+                        background: #e3f2fd;
+                        padding: 12px 15px;
+                        border-radius: 4px;
+                        margin-bottom: 20px;
+                        font-weight: 600;
+                        color: #002868;
+                    }
+                </style>
+
+                <div class="calendar-container">
+                    <!-- Calendar -->
+                    <div class="calendar">
+                        <div class="calendar-header">
+                            <h3 id="calendarTitle">December 2025</h3>
+                            <div class="calendar-nav">
+                                <button onclick="prevMonth()"><i class="fas fa-chevron-left"></i></button>
+                                <button onclick="nextMonth()"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid">
+                            <div class="calendar-day-header">Sun</div>
+                            <div class="calendar-day-header">Mon</div>
+                            <div class="calendar-day-header">Tue</div>
+                            <div class="calendar-day-header">Wed</div>
+                            <div class="calendar-day-header">Thu</div>
+                            <div class="calendar-day-header">Fri</div>
+                            <div class="calendar-day-header">Sat</div>
+                        </div>
+                        <div class="calendar-legend">
+                            <div class="legend-item"><span class="event-dot rental-paid"></span> Booked</div>
+                            <div class="legend-item"><span class="event-dot rental-pending"></span> Pending</div>
+                            <div class="legend-item"><span class="event-dot post-event"></span> Post Event</div>
+                        </div>
+                    </div>
+
+                    <!-- Rental Request Form -->
+                    <div class="rental-form-container">
+                        <div class="rental-form-header">
+                            <h3><i class="fas fa-calendar-plus"></i> Request a Rental</h3>
+                        </div>
+                        <form class="rental-form" id="rentalRequestForm">
+                            <div class="form-message" id="formMessage"></div>
+                            
+                            <div class="selected-date-display" id="selectedDateDisplay" style="display:none;">
+                                Selected Date: <span id="selectedDateText"></span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="rentalDate">Event Date *</label>
+                                <input type="date" id="rentalDate" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eventType">Type of Event *</label>
+                                <select id="eventType" required>
+                                    <option value="">Select event type...</option>
+                                    <option value="Wedding Reception">Wedding Reception</option>
+                                    <option value="Birthday Party">Birthday Party</option>
+                                    <option value="Anniversary">Anniversary</option>
+                                    <option value="Memorial Service">Memorial Service</option>
+                                    <option value="Baby Shower">Baby Shower</option>
+                                    <option value="Graduation Party">Graduation Party</option>
+                                    <option value="Corporate Event">Corporate Event</option>
+                                    <option value="Fundraiser">Fundraiser</option>
+                                    <option value="Holiday Party">Holiday Party</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contactName">Your Name *</label>
+                                <input type="text" id="contactName" required placeholder="Full name">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contactEmail">Email Address *</label>
+                                <input type="email" id="contactEmail" required placeholder="email@example.com">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contactPhone">Phone Number *</label>
+                                <input type="tel" id="contactPhone" required placeholder="(508) 555-1234">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eventDetails">Additional Details</label>
+                                <textarea id="eventDetails" rows="3" placeholder="Expected guests, special requests, questions..."></textarea>
+                            </div>
+                            
+                            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                                <i class="fas fa-info-circle"></i> 
+                                After submitting, you'll have 48 hours to make a deposit to confirm your reservation.
+                            </p>
+                            
+                            <button type="submit" class="btn-submit" id="submitBtn">
+                                <i class="fas fa-paper-plane"></i> Submit Request
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Booking Tips Section -->
+            <article class="primary-content" style="max-width: 800px;">
+                <h3>Booking Tips</h3>
+                <ul>
+                    <li>Book early for weekend dates, especially during wedding season</li>
+                    <li>Holiday weekends fill up quickly</li>
+                    <li>Weekday rates may be available at a discount</li>
+                </ul>
+                
+                <a href="hall-rental.html" class="btn btn-primary">View Rental Rates</a>
+                <a href="contact.html" class="btn btn-outline" style="margin-left: 1rem;">Contact Us</a>
+            </article>
+        </div>
+    </main>
+
+    <div data-component="footer"></div>
+    <script src="js/components.js"></script>
+    <script src="js/main.js"></script>
+    
+    <script>
+    (function() {
+        const API_URL = 'https://api.somersetamericanlegion.org';
+        
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let calendarData = { rentals: [], events: [] };
+        
+        // Load calendar data
+        async function loadCalendarData() {
+            try {
+                const res = await fetch(`${API_URL}/api/calendar`);
+                calendarData = await res.json();
+                renderCalendar();
+            } catch (err) {
+                console.error('Failed to load calendar:', err);
+                renderCalendar();
+            }
+        }
+        
+        // Render calendar
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const title = document.getElementById('calendarTitle');
+            
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            title.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            
+            // Clear existing days (keep headers)
+            const headers = grid.querySelectorAll('.calendar-day-header');
+            grid.innerHTML = '';
+            headers.forEach(h => grid.appendChild(h));
+            
+            // Get first day of month and total days
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Previous month days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                const div = document.createElement('div');
+                div.className = 'calendar-day other-month past';
+                div.innerHTML = `<div class="day-number">${day}</div>`;
+                grid.appendChild(div);
+            }
+            
+            // Current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(currentYear, currentMonth, day);
+                const dateStr = date.toISOString().split('T')[0];
+                const isPast = date < today;
+                
+                // Check for rentals on this date
+                const rental = calendarData.rentals.find(r => r.event_date === dateStr);
+                const event = calendarData.events.find(e => e.event_date === dateStr);
+                
+                let classes = 'calendar-day';
+                if (isPast) classes += ' past';
+                if (date.toDateString() === today.toDateString()) classes += ' today';
+                if (rental && (rental.status === 'paid' || rental.status === 'approved')) classes += ' booked';
+                else if (rental && rental.status === 'pending') classes += ' pending';
+                
+                const div = document.createElement('div');
+                div.className = classes;
+                
+                let content = `<div class="day-number">${day}</div>`;
+                
+                if (rental) {
+                    const dotClass = rental.status === 'paid' ? 'rental-paid' : 
+                                    rental.status === 'approved' ? 'rental-approved' : 'rental-pending';
+                    const label = rental.status === 'pending' ? 'Pending' : 'Booked';
+                    content += `<span class="event-dot ${dotClass}"></span><span class="event-label">${label}</span>`;
+                }
+                
+                if (event) {
+                    content += `<span class="event-dot post-event"></span><span class="event-label">${event.title}</span>`;
+                }
+                
+                div.innerHTML = content;
+                
+                // Click to select date for rental
+                if (!isPast && !(rental && rental.status !== 'pending')) {
+                    div.addEventListener('click', () => selectDate(dateStr));
+                }
+                
+                grid.appendChild(div);
+            }
+            
+            // Next month days to fill grid
+            const totalCells = grid.querySelectorAll('.calendar-day').length;
+            const remaining = 42 - totalCells; // 6 rows * 7 days
+            
+            for (let day = 1; day <= remaining && remaining < 14; day++) {
+                const div = document.createElement('div');
+                div.className = 'calendar-day other-month';
+                div.innerHTML = `<div class="day-number">${day}</div>`;
+                grid.appendChild(div);
+            }
+        }
+        
+        // Navigation
+        window.prevMonth = function() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        };
+        
+        window.nextMonth = function() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        };
+        
+        // Select date
+        function selectDate(dateStr) {
+            document.getElementById('rentalDate').value = dateStr;
+            
+            const date = new Date(dateStr + 'T00:00:00');
+            const formatted = date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            
+            document.getElementById('selectedDateText').textContent = formatted;
+            document.getElementById('selectedDateDisplay').style.display = 'block';
+            
+            // Scroll to form on mobile
+            if (window.innerWidth < 1000) {
+                document.getElementById('rentalRequestForm').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        // Date input change
+        document.getElementById('rentalDate').addEventListener('change', function() {
+            if (this.value) {
+                selectDate(this.value);
+            }
+        });
+        
+        // Set min date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('rentalDate').setAttribute('min', today);
+        
+        // Form submission
+        document.getElementById('rentalRequestForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const msg = document.getElementById('formMessage');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            msg.className = 'form-message';
+            msg.style.display = 'none';
+            
+            const data = {
+                event_date: document.getElementById('rentalDate').value,
+                event_type: document.getElementById('eventType').value,
+                contact_name: document.getElementById('contactName').value,
+                contact_email: document.getElementById('contactEmail').value,
+                contact_phone: document.getElementById('contactPhone').value,
+                details: document.getElementById('eventDetails').value
+            };
+            
+            try {
+                const res = await fetch(`${API_URL}/api/rentals`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await res.json();
+                
+                if (res.ok) {
+                    msg.className = 'form-message success';
+                    msg.innerHTML = `
+                        <i class="fas fa-check-circle"></i> <strong>Request Submitted!</strong><br>
+                        We've received your rental request. You'll receive a confirmation email shortly.
+                        Please make your deposit within 48 hours to secure your date.
+                    `;
+                    msg.style.display = 'block';
+                    this.reset();
+                    document.getElementById('selectedDateDisplay').style.display = 'none';
+                    loadCalendarData(); // Refresh calendar
+                } else {
+                    msg.className = 'form-message error';
+                    msg.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${result.error || 'Something went wrong. Please try again.'}`;
+                    msg.style.display = 'block';
+                }
+            } catch (err) {
+                msg.className = 'form-message error';
+                msg.innerHTML = '<i class="fas fa-exclamation-circle"></i> Connection error. Please try again.';
+                msg.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Request';
+        });
+        
+        // Initialize
+        loadCalendarData();
+    })();
+    </script>
+</body>
+</html>
