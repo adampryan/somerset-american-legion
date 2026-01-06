@@ -423,6 +423,9 @@
             <div class="panel active" id="rentalsPanel">
                 <div class="panel-header">
                     <h2>Hall Rentals</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showRentalAddModal()">
+                        <i class="fas fa-plus"></i> Add Rental
+                    </button>
                 </div>
                 <div class="panel-body">
                     <table id="rentalsTable">
@@ -581,6 +584,72 @@
         </div>
     </div>
 
+    <!-- Add Rental Modal -->
+    <div class="modal-overlay" id="rentalAddModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="rentalAddModalTitle">Add Rental</h3>
+                <button class="modal-close" onclick="closeModal('rentalAddModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="rentalAddForm">
+                    <input type="hidden" id="rentalAddId">
+                    <div class="form-group">
+                        <label for="rentalAddDate">Date *</label>
+                        <input type="date" id="rentalAddDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="rentalAddType">Event Type *</label>
+                        <select id="rentalAddType" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;" required>
+                            <option value="">Select type...</option>
+                            <option value="Birthday Party">Birthday Party</option>
+                            <option value="Baby Shower">Baby Shower</option>
+                            <option value="Bridal Shower">Bridal Shower</option>
+                            <option value="Wedding Reception">Wedding Reception</option>
+                            <option value="Anniversary">Anniversary</option>
+                            <option value="Graduation Party">Graduation Party</option>
+                            <option value="Memorial Service">Memorial Service</option>
+                            <option value="Baptism">Baptism</option>
+                            <option value="Communion">Communion</option>
+                            <option value="Legion Event">Legion Event</option>
+                            <option value="Auxiliary Event">Auxiliary Event</option>
+                            <option value="Private Event">Private Event</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="rentalAddContact">Contact Name *</label>
+                        <input type="text" id="rentalAddContact" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="rentalAddEmail">Contact Email</label>
+                        <input type="email" id="rentalAddEmail" placeholder="Optional for internal bookings">
+                    </div>
+                    <div class="form-group">
+                        <label for="rentalAddPhone">Contact Phone</label>
+                        <input type="tel" id="rentalAddPhone" placeholder="Optional for internal bookings">
+                    </div>
+                    <div class="form-group">
+                        <label for="rentalAddDetails">Details/Notes</label>
+                        <textarea id="rentalAddDetails" rows="3" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;" placeholder="Time, special notes, etc."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="rentalAddStatus">Status *</label>
+                        <select id="rentalAddStatus" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;">
+                            <option value="approved">Approved</option>
+                            <option value="paid">Paid</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('rentalAddModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRentalAdd()">Save Rental</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = 'https://api.somersetamericanlegion.org';        let token = localStorage.getItem('legion_token');
         let currentUser = JSON.parse(localStorage.getItem('legion_user') || 'null');
@@ -677,6 +746,7 @@
         // Load data
         async function loadRentals() {
             const rentals = await api('/api/admin/rentals');
+            rentalsData = rentals; // Store for edit function
             const tbody = document.querySelector('#rentalsTable tbody');
             const empty = document.getElementById('rentalsEmpty');
             
@@ -696,6 +766,9 @@
                     <td class="actions">
                         <button class="btn btn-sm" onclick="viewRental(${r.id})" title="View Details">
                             <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm" onclick="editRental(${r.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
                         </button>
                         ${r.status === 'pending' || r.status === 'approved' ? `
                             <button class="btn btn-sm btn-warning" onclick="cancelRental(${r.id})" title="Cancel">
@@ -773,6 +846,67 @@
 
         // Rental functions
         let rentalsData = [];
+        
+        function showRentalAddModal() {
+            document.getElementById('rentalAddModalTitle').textContent = 'Add Rental';
+            document.getElementById('rentalAddId').value = '';
+            document.getElementById('rentalAddDate').value = '';
+            document.getElementById('rentalAddType').value = '';
+            document.getElementById('rentalAddContact').value = '';
+            document.getElementById('rentalAddEmail').value = '';
+            document.getElementById('rentalAddPhone').value = '';
+            document.getElementById('rentalAddDetails').value = '';
+            document.getElementById('rentalAddStatus').value = 'approved';
+            document.getElementById('rentalAddModal').classList.add('active');
+        }
+        
+        function editRental(id) {
+            const rental = rentalsData.find(r => r.id === id);
+            if (!rental) return;
+            
+            document.getElementById('rentalAddModalTitle').textContent = 'Edit Rental';
+            document.getElementById('rentalAddId').value = id;
+            document.getElementById('rentalAddDate').value = rental.event_date;
+            document.getElementById('rentalAddType').value = rental.event_type;
+            document.getElementById('rentalAddContact').value = rental.contact_name;
+            document.getElementById('rentalAddEmail').value = rental.contact_email || '';
+            document.getElementById('rentalAddPhone').value = rental.contact_phone || '';
+            document.getElementById('rentalAddDetails').value = rental.details || '';
+            document.getElementById('rentalAddStatus').value = rental.status;
+            document.getElementById('rentalAddModal').classList.add('active');
+        }
+        
+        async function saveRentalAdd() {
+            const id = document.getElementById('rentalAddId').value;
+            const data = {
+                event_date: document.getElementById('rentalAddDate').value,
+                event_type: document.getElementById('rentalAddType').value,
+                contact_name: document.getElementById('rentalAddContact').value,
+                contact_email: document.getElementById('rentalAddEmail').value || 'internal@legion.local',
+                contact_phone: document.getElementById('rentalAddPhone').value || '000-000-0000',
+                details: document.getElementById('rentalAddDetails').value,
+                status: document.getElementById('rentalAddStatus').value
+            };
+            
+            if (!data.event_date || !data.event_type || !data.contact_name) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                if (id) {
+                    await api(`/api/admin/rentals/${id}`, 'PUT', data);
+                } else {
+                    await api('/api/admin/rentals', 'POST', data);
+                }
+                
+                closeModal('rentalAddModal');
+                loadRentals();
+            } catch (error) {
+                alert('Error saving rental: ' + error.message);
+            }
+        }
+        
         async function viewRental(id) {
             const rentals = await api('/api/admin/rentals');
             const rental = rentals.find(r => r.id === id);
