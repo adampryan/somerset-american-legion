@@ -353,7 +353,25 @@
                                 <label for="rentalDate">Event Date *</label>
                                 <input type="date" id="rentalDate" required>
                             </div>
-                            
+
+                            <div class="form-group">
+                                <label for="startTime">Start Time *</label>
+                                <select id="startTime" required>
+                                    <option value="">Select start time...</option>
+                                    <option value="09:00">9:00 AM (ends 1:00 PM)</option>
+                                    <option value="10:00">10:00 AM (ends 2:00 PM)</option>
+                                    <option value="11:00">11:00 AM (ends 3:00 PM)</option>
+                                    <option value="12:00">12:00 PM (ends 4:00 PM)</option>
+                                    <option value="13:00">1:00 PM (ends 5:00 PM)</option>
+                                    <option value="14:00">2:00 PM (ends 6:00 PM)</option>
+                                    <option value="15:00">3:00 PM (ends 7:00 PM)</option>
+                                    <option value="16:00">4:00 PM (ends 8:00 PM)</option>
+                                    <option value="17:00">5:00 PM (ends 9:00 PM)</option>
+                                    <option value="18:00">6:00 PM (ends 10:00 PM)</option>
+                                </select>
+                                <small>Rentals are for 4-hour blocks</small>
+                            </div>
+
                             <div class="form-group">
                                 <label for="eventType">Type of Event *</label>
                                 <select id="eventType" required>
@@ -385,7 +403,15 @@
                                 <label for="contactPhone">Phone Number *</label>
                                 <input type="tel" id="contactPhone" required placeholder="(508) 555-1234">
                             </div>
-                            
+
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="checkbox" id="kitchenRental" style="width: auto; margin-right: 10px;">
+                                    <span>Add Kitchen Rental (+$35)</span>
+                                </label>
+                                <small>Includes access to full kitchen facilities</small>
+                            </div>
+
                             <div class="form-group">
                                 <label for="eventDetails">Additional Details</label>
                                 <textarea id="eventDetails" rows="3" placeholder="Expected guests, special requests, questions..."></textarea>
@@ -594,10 +620,12 @@
             
             const data = {
                 event_date: document.getElementById('rentalDate').value,
+                start_time: document.getElementById('startTime').value,
                 event_type: document.getElementById('eventType').value,
                 contact_name: document.getElementById('contactName').value,
                 contact_email: document.getElementById('contactEmail').value,
                 contact_phone: document.getElementById('contactPhone').value,
+                kitchen_rental: document.getElementById('kitchenRental').checked,
                 details: document.getElementById('eventDetails').value
             };
             

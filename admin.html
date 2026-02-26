@@ -45,6 +45,13 @@
             max-width: 400px;
         }
         
+        .login-logo {
+            display: block;
+            width: 80px;
+            height: auto;
+            margin: 0 auto 20px;
+        }
+
         .login-box h1 {
             color: var(--navy);
             text-align: center;
@@ -68,15 +75,20 @@
             color: var(--gray-800);
         }
         
-        .form-group input {
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 12px;
             border: 2px solid var(--gray-200);
             border-radius: 4px;
             font-size: 16px;
+            font-family: inherit;
         }
-        
-        .form-group input:focus {
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: var(--navy);
         }
@@ -145,6 +157,11 @@
         .header h1 {
             font-size: 1.5rem;
         }
+
+        .header-logo {
+            height: 45px;
+            width: auto;
+        }
         
         .header-user {
             display: flex;
@@ -167,7 +184,17 @@
             background: var(--white);
             color: var(--navy);
         }
-        
+
+        a.btn-logout {
+            text-decoration: none;
+        }
+
+        /* Table wrapper for mobile scroll */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
         .tabs {
             background: var(--white);
             border-bottom: 1px solid var(--gray-200);
@@ -346,27 +373,141 @@
             .header {
                 flex-direction: column;
                 gap: 10px;
-            }
-            
-            .tabs {
-                overflow-x: auto;
-                padding: 0 15px;
-            }
-            
-            .content {
                 padding: 15px;
             }
-            
-            table {
-                font-size: 14px;
-            }
-            
-            th, td {
-                padding: 8px;
-            }
-            
-            .actions {
+
+            .header > div:first-child {
                 flex-direction: column;
+                width: 100%;
+                gap: 10px;
+            }
+
+            .header > div:first-child a {
+                width: 100%;
+                text-align: center;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+                text-align: center;
+            }
+
+            .header-logo {
+                height: 40px;
+            }
+
+            .header-user {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                padding: 0 10px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab {
+                padding: 12px 15px;
+                font-size: 14px;
+                white-space: nowrap;
+            }
+
+            .content {
+                padding: 10px;
+            }
+
+            .panel-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+
+            .panel-header h2 {
+                font-size: 1.2rem;
+            }
+
+            .panel-header .btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .panel-body {
+                padding: 10px;
+            }
+
+            /* Table horizontal scroll */
+            .table-wrapper {
+                margin: 0 -10px;
+                padding: 0 10px;
+            }
+
+            table {
+                font-size: 13px;
+                min-width: 650px;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
+
+            .actions {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .actions .btn-sm {
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+
+            /* Modal mobile fixes */
+            .modal {
+                margin: 10px;
+                max-height: calc(100vh - 20px);
+            }
+
+            .modal-header, .modal-body, .modal-footer {
+                padding: 15px;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+            }
+
+            .modal-footer .btn {
+                width: 100%;
+            }
+
+            /* Login box mobile */
+            .login-box {
+                padding: 25px 20px;
+            }
+
+            .login-box h1 {
+                font-size: 1.4rem;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .tab {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            .badge {
+                font-size: 10px;
+                padding: 3px 6px;
             }
         }
     </style>
@@ -375,7 +516,8 @@
     <!-- Login Page -->
     <div class="login-container" id="loginPage">
         <div class="login-box">
-            <h1><i class="fas fa-shield-alt"></i> Admin Login</h1>
+            <img src="images/TAL-emblem-full-detail-RGB.png" alt="American Legion Emblem" class="login-logo">
+            <h1>Admin Login</h1>
             <p class="subtitle">Somerset American Legion Post 228</p>
             <div class="error-msg" id="loginError"></div>
             <form id="loginForm">
@@ -397,7 +539,13 @@
     <!-- Dashboard -->
     <div class="dashboard" id="dashboard">
         <header class="header">
-            <h1><i class="fas fa-shield-alt"></i> Post 228 Admin</h1>
+            <div style="display:flex;align-items:center;gap:15px;">
+                <a href="index.html" class="btn btn-logout" title="Back to Main Site">
+                    <i class="fas fa-arrow-left"></i> Back to Site
+                </a>
+                <img src="images/TAL-emblem-full-detail-RGB.png" alt="American Legion Emblem" class="header-logo">
+                <h1>Post 228 Admin</h1>
+            </div>
             <div class="header-user">
                 <span id="userName"></span>
                 <button class="btn btn-logout" onclick="logout()">
@@ -428,18 +576,21 @@
                     </button>
                 </div>
                 <div class="panel-body">
-                    <table id="rentalsTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Event Type</th>
-                                <th>Contact</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="table-wrapper">
+                        <table id="rentalsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Event Type</th>
+                                    <th>Contact</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                     <div class="empty-state" id="rentalsEmpty" style="display:none;">
                         <i class="fas fa-calendar-times"></i>
                         <p>No rental requests yet</p>
@@ -456,17 +607,19 @@
                     </button>
                 </div>
                 <div class="panel-body">
-                    <table id="eventsTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Title</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="table-wrapper">
+                        <table id="eventsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Title</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                     <div class="empty-state" id="eventsEmpty" style="display:none;">
                         <i class="fas fa-calendar-plus"></i>
                         <p>No events scheduled</p>
@@ -483,18 +636,20 @@
                     </button>
                 </div>
                 <div class="panel-body">
-                    <table id="usersTable">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Alerts</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="table-wrapper">
+                        <table id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Alerts</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -536,7 +691,7 @@
                     </div>
                     <div class="form-group">
                         <label for="eventDesc">Description</label>
-                        <textarea id="eventDesc" rows="3" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;"></textarea>
+                        <textarea id="eventDesc" rows="3"></textarea>
                     </div>
                 </form>
             </div>
@@ -570,7 +725,7 @@
                     </div>
                     <div class="form-group">
                         <label for="newUserRole">Role</label>
-                        <select id="newUserRole" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;">
+                        <select id="newUserRole">
                             <option value="officer">Officer</option>
                             <option value="webmaster">Webmaster</option>
                         </select>
@@ -599,8 +754,24 @@
                         <input type="date" id="rentalAddDate" required>
                     </div>
                     <div class="form-group">
+                        <label for="rentalAddStartTime">Start Time *</label>
+                        <select id="rentalAddStartTime" required>
+                            <option value="">Select start time...</option>
+                            <option value="09:00">9:00 AM (ends 1:00 PM)</option>
+                            <option value="10:00">10:00 AM (ends 2:00 PM)</option>
+                            <option value="11:00">11:00 AM (ends 3:00 PM)</option>
+                            <option value="12:00">12:00 PM (ends 4:00 PM)</option>
+                            <option value="13:00">1:00 PM (ends 5:00 PM)</option>
+                            <option value="14:00">2:00 PM (ends 6:00 PM)</option>
+                            <option value="15:00">3:00 PM (ends 7:00 PM)</option>
+                            <option value="16:00">4:00 PM (ends 8:00 PM)</option>
+                            <option value="17:00">5:00 PM (ends 9:00 PM)</option>
+                            <option value="18:00">6:00 PM (ends 10:00 PM)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="rentalAddType">Event Type *</label>
-                        <select id="rentalAddType" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;" required>
+                        <select id="rentalAddType" required>
                             <option value="">Select type...</option>
                             <option value="Birthday Party">Birthday Party</option>
                             <option value="Baby Shower">Baby Shower</option>
@@ -631,11 +802,17 @@
                     </div>
                     <div class="form-group">
                         <label for="rentalAddDetails">Details/Notes</label>
-                        <textarea id="rentalAddDetails" rows="3" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;" placeholder="Time, special notes, etc."></textarea>
+                        <textarea id="rentalAddDetails" rows="3" placeholder="Special notes, etc."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;cursor:pointer;">
+                            <input type="checkbox" id="rentalAddKitchen" style="width:auto;margin-right:10px;">
+                            <span>Kitchen Rental (+$35)</span>
+                        </label>
                     </div>
                     <div class="form-group">
                         <label for="rentalAddStatus">Status *</label>
-                        <select id="rentalAddStatus" style="width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:4px;">
+                        <select id="rentalAddStatus">
                             <option value="approved">Approved</option>
                             <option value="paid">Paid</option>
                             <option value="pending">Pending</option>
@@ -760,6 +937,7 @@
             tbody.innerHTML = rentals.map(r => `
                 <tr>
                     <td>${formatDate(r.event_date)}</td>
+                    <td>${r.start_time ? formatTime(r.start_time) : '-'}${r.kitchen_rental ? '<br><small>+ Kitchen</small>' : ''}</td>
                     <td>${r.event_type}</td>
                     <td>${r.contact_name}<br><small>${r.contact_email}</small></td>
                     <td><span class="badge badge-${r.status}">${r.status}</span></td>
@@ -851,11 +1029,13 @@
             document.getElementById('rentalAddModalTitle').textContent = 'Add Rental';
             document.getElementById('rentalAddId').value = '';
             document.getElementById('rentalAddDate').value = '';
+            document.getElementById('rentalAddStartTime').value = '';
             document.getElementById('rentalAddType').value = '';
             document.getElementById('rentalAddContact').value = '';
             document.getElementById('rentalAddEmail').value = '';
             document.getElementById('rentalAddPhone').value = '';
             document.getElementById('rentalAddDetails').value = '';
+            document.getElementById('rentalAddKitchen').checked = false;
             document.getElementById('rentalAddStatus').value = 'approved';
             document.getElementById('rentalAddModal').classList.add('active');
         }
@@ -863,15 +1043,17 @@
         function editRental(id) {
             const rental = rentalsData.find(r => r.id === id);
             if (!rental) return;
-            
+
             document.getElementById('rentalAddModalTitle').textContent = 'Edit Rental';
             document.getElementById('rentalAddId').value = id;
             document.getElementById('rentalAddDate').value = rental.event_date;
+            document.getElementById('rentalAddStartTime').value = rental.start_time || '';
             document.getElementById('rentalAddType').value = rental.event_type;
             document.getElementById('rentalAddContact').value = rental.contact_name;
             document.getElementById('rentalAddEmail').value = rental.contact_email || '';
             document.getElementById('rentalAddPhone').value = rental.contact_phone || '';
             document.getElementById('rentalAddDetails').value = rental.details || '';
+            document.getElementById('rentalAddKitchen').checked = rental.kitchen_rental || false;
             document.getElementById('rentalAddStatus').value = rental.status;
             document.getElementById('rentalAddModal').classList.add('active');
         }
@@ -880,15 +1062,17 @@
             const id = document.getElementById('rentalAddId').value;
             const data = {
                 event_date: document.getElementById('rentalAddDate').value,
+                start_time: document.getElementById('rentalAddStartTime').value,
                 event_type: document.getElementById('rentalAddType').value,
                 contact_name: document.getElementById('rentalAddContact').value,
                 contact_email: document.getElementById('rentalAddEmail').value || 'internal@legion.local',
                 contact_phone: document.getElementById('rentalAddPhone').value || '000-000-0000',
                 details: document.getElementById('rentalAddDetails').value,
+                kitchen_rental: document.getElementById('rentalAddKitchen').checked,
                 status: document.getElementById('rentalAddStatus').value
             };
-            
-            if (!data.event_date || !data.event_type || !data.contact_name) {
+
+            if (!data.event_date || !data.start_time || !data.event_type || !data.contact_name) {
                 alert('Please fill in all required fields');
                 return;
             }
@@ -914,7 +1098,9 @@
             
             document.getElementById('rentalDetails').innerHTML = `
                 <p><strong>Date:</strong> ${formatDate(rental.event_date)}</p>
+                <p><strong>Time:</strong> ${rental.start_time ? formatTime(rental.start_time) + ' (4-hour block)' : 'Not specified'}</p>
                 <p><strong>Event Type:</strong> ${rental.event_type}</p>
+                <p><strong>Kitchen Rental:</strong> ${rental.kitchen_rental ? 'Yes (+$35)' : 'No'}</p>
                 <p><strong>Contact:</strong> ${rental.contact_name}</p>
                 <p><strong>Email:</strong> <a href="mailto:${rental.contact_email}">${rental.contact_email}</a></p>
                 <p><strong>Phone:</strong> <a href="tel:${rental.contact_phone}">${rental.contact_phone}</a></p>
@@ -1058,6 +1244,15 @@
                 day: 'numeric',
                 year: 'numeric'
             });
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return '';
+            const [hours, minutes] = timeStr.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minutes || '00'} ${ampm}`;
         }
 
         // Close modals on outside click
