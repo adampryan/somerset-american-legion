@@ -561,6 +561,9 @@
             <button class="tab" data-panel="events">
                 <i class="fas fa-bullhorn"></i> Events
             </button>
+            <button class="tab" data-panel="subscribers">
+                <i class="fas fa-envelope"></i> Subscribers
+            </button>
             <button class="tab" data-panel="users" id="usersTab" style="display:none;">
                 <i class="fas fa-users"></i> Users
             </button>
@@ -649,6 +652,37 @@
                             </thead>
                             <tbody></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subscribers Panel -->
+            <div class="panel" id="subscribersPanel">
+                <div class="panel-header">
+                    <h2>Mailing List Subscribers</h2>
+                    <a href="#" class="btn btn-primary btn-sm" onclick="exportSubscribers(event)">
+                        <i class="fas fa-download"></i> Export CSV
+                    </a>
+                </div>
+                <div class="panel-body">
+                    <div class="table-wrapper">
+                        <table id="subscribersTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Interests</th>
+                                    <th>Subscribed</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-state" id="subscribersEmpty" style="display:none;">
+                        <i class="fas fa-envelope-open"></i>
+                        <p>No subscribers yet</p>
                     </div>
                 </div>
             </div>
@@ -843,6 +877,11 @@
                 document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById(tab.dataset.panel + 'Panel').classList.add('active');
+
+                // Load data for specific panels
+                if (tab.dataset.panel === 'subscribers') {
+                    loadSubscribers();
+                }
             });
         });
 
@@ -1020,6 +1059,54 @@
         async function toggleNotifications(userId, enabled) {
             await api(`/api/admin/users/${userId}/notifications`, 'PUT', { enabled });
             loadUsers();
+        }
+
+        // Subscriber functions
+        async function loadSubscribers() {
+            try {
+                const subscribers = await api('/api/admin/subscribers');
+                const tbody = document.querySelector('#subscribersTable tbody');
+                const emptyState = document.getElementById('subscribersEmpty');
+
+                if (subscribers.length === 0) {
+                    tbody.innerHTML = '';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                emptyState.style.display = 'none';
+                tbody.innerHTML = subscribers.map(s => `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td><a href="mailto:${s.email}">${s.email}</a></td>
+                        <td>${s.interests || '-'}</td>
+                        <td>${new Date(s.subscribed_at).toLocaleDateString()}</td>
+                        <td>
+                            <span class="badge ${s.unsubscribed_at ? 'badge-cancelled' : 'badge-paid'}">
+                                ${s.unsubscribed_at ? 'Unsubscribed' : 'Active'}
+                            </span>
+                        </td>
+                        <td class="actions">
+                            <button class="btn btn-sm btn-danger" onclick="deleteSubscriber(${s.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load subscribers:', err);
+            }
+        }
+
+        async function deleteSubscriber(id) {
+            if (!confirm('Remove this subscriber?')) return;
+            await api(`/api/admin/subscribers/${id}`, 'DELETE');
+            loadSubscribers();
+        }
+
+        function exportSubscribers(e) {
+            e.preventDefault();
+            window.open(`${API_URL}/api/admin/subscribers/export`, '_blank');
         }
 
         // Rental functions

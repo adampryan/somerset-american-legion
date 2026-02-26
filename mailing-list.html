@@ -31,7 +31,7 @@
             <h2>Join Our Mailing List</h2>
             <p>Stay informed about Post 228 events, news, and activities.</p>
             
-            <form id="mailing-list-form" class="contact-form" action="#" method="POST">
+            <form id="mailing-list-form" class="contact-form">
                 <div class="form-group">
                     <label for="name">Your Name *</label>
                     <input type="text" id="name" name="name" required>
@@ -50,9 +50,10 @@
                         <option value="all">All News</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary">Subscribe</button>
+                <button type="submit" class="btn btn-primary" id="subscribe-btn">Subscribe</button>
+                <div id="form-message" style="margin-top: 1rem; display: none;"></div>
             </form>
-            
+
             <p style="margin-top: 2rem; font-size: 0.9rem; color: #6c757d;">We respect your privacy and will never share your information with third parties.</p>
         </article>
         </div>
@@ -61,5 +62,62 @@
     <div data-component="footer"></div>
     <script src="js/components.js"></script>
     <script src="js/main.js"></script>
+    <script>
+    (function() {
+        const API_URL = 'https://api.somersetamericanlegion.org';
+        const form = document.getElementById('mailing-list-form');
+        const btn = document.getElementById('subscribe-btn');
+        const msgDiv = document.getElementById('form-message');
+
+        function showMessage(text, isError = false) {
+            msgDiv.style.display = 'block';
+            msgDiv.style.padding = '1rem';
+            msgDiv.style.borderRadius = '4px';
+            msgDiv.style.background = isError ? '#f8d7da' : '#d4edda';
+            msgDiv.style.color = isError ? '#721c24' : '#155724';
+            msgDiv.textContent = text;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const interests = document.getElementById('interests').value;
+
+            if (!name || !email) {
+                showMessage('Please fill in all required fields.', true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Subscribing...';
+            msgDiv.style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_URL}/api/subscribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, interests })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showMessage(data.message || 'Successfully subscribed! Check your email for confirmation.');
+                    form.reset();
+                } else {
+                    showMessage(data.error || 'Something went wrong. Please try again.', true);
+                }
+            } catch (err) {
+                console.error('Subscribe error:', err);
+                showMessage('Failed to connect. Please try again later.', true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Subscribe';
+            }
+        });
+    })();
+    </script>
 </body>
 </html>
