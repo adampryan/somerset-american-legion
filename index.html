@@ -120,37 +120,10 @@
                         <h3 class="widget-title">
                             <i class="fas fa-calendar-alt"></i> Upcoming Events
                         </h3>
-                        <div class="event-list">
-                            <article class="event-item">
-                                <div class="event-date">
-                                    <span class="day">15</span>
-                                    <span class="month">Dec</span>
-                                </div>
-                                <div class="event-details">
-                                    <h4><a href="events.html">Holiday Dinner</a></h4>
-                                    <p>Join us for our annual holiday celebration dinner.</p>
-                                </div>
-                            </article>
-                            <article class="event-item">
-                                <div class="event-date">
-                                    <span class="day">01</span>
-                                    <span class="month">Jan</span>
-                                </div>
-                                <div class="event-details">
-                                    <h4><a href="events.html">New Year's Open House</a></h4>
-                                    <p>Start the new year with your Legion family.</p>
-                                </div>
-                            </article>
-                            <article class="event-item">
-                                <div class="event-date">
-                                    <span class="day">17</span>
-                                    <span class="month">Mar</span>
-                                </div>
-                                <div class="event-details">
-                                    <h4><a href="events.html">Corned Beef & Cabbage</a></h4>
-                                    <p>Annual St. Patrick's Day dinner event.</p>
-                                </div>
-                            </article>
+                        <div class="event-list" id="sidebar-events">
+                            <div style="text-align: center; padding: 1rem; color: #666;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                            </div>
                         </div>
                         <a href="events.html" class="widget-link">View All Events <i class="fas fa-arrow-right"></i></a>
                     </div>
@@ -202,5 +175,63 @@
 
     <script src="js/components.js"></script>
     <script src="js/main.js"></script>
+    <script>
+    (function() {
+        const API_URL = 'https://api.somersetamericanlegion.org';
+
+        async function loadSidebarEvents() {
+            const container = document.getElementById('sidebar-events');
+            if (!container) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/calendar`);
+                const data = await res.json();
+                const events = data.events || [];
+
+                // Filter to only future events, sort by date, limit to 3
+                const now = new Date();
+                now.setHours(0, 0, 0, 0);
+                const upcomingEvents = events
+                    .filter(e => new Date(e.event_date + 'T00:00:00') >= now)
+                    .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+                    .slice(0, 3);
+
+                if (upcomingEvents.length === 0) {
+                    container.innerHTML = `
+                        <p style="text-align: center; color: #666; padding: 1rem 0;">No upcoming events</p>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = upcomingEvents.map(event => {
+                    const date = new Date(event.event_date + 'T00:00:00');
+                    const day = date.getDate();
+                    const month = date.toLocaleString('en-US', { month: 'short' });
+
+                    return `
+                        <article class="event-item">
+                            <div class="event-date">
+                                <span class="day">${day}</span>
+                                <span class="month">${month}</span>
+                            </div>
+                            <div class="event-details">
+                                <h4><a href="events.html">${event.title}</a></h4>
+                                <p>${event.description || ''}</p>
+                            </div>
+                        </article>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error('Failed to load events:', err);
+                container.innerHTML = `
+                    <p style="text-align: center; color: #666; padding: 1rem 0;">No upcoming events</p>
+                `;
+            }
+        }
+
+        loadSidebarEvents();
+    })();
+    </script>
 </body>
 </html>
