@@ -558,6 +558,12 @@
             <button class="tab active" data-panel="rentals">
                 <i class="fas fa-calendar-alt"></i> Rentals
             </button>
+            <button class="tab" data-panel="shifts">
+                <i class="fas fa-glass-cheers"></i> Bar Shifts
+            </button>
+            <button class="tab" data-panel="bartenders">
+                <i class="fas fa-user-friends"></i> Bartenders
+            </button>
             <button class="tab" data-panel="events">
                 <i class="fas fa-bullhorn"></i> Events
             </button>
@@ -588,6 +594,7 @@
                                     <th>Event Type</th>
                                     <th>Contact</th>
                                     <th>Status</th>
+                                    <th>Bartender</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -600,7 +607,68 @@
                     </div>
                 </div>
             </div>
-            
+
+            <!-- Shifts Panel -->
+            <div class="panel" id="shiftsPanel">
+                <div class="panel-header">
+                    <h2>Bar Shifts</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showShiftModal()">
+                        <i class="fas fa-plus"></i> Add Shift
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <div class="table-wrapper">
+                        <table id="shiftsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Label</th>
+                                    <th>Status</th>
+                                    <th>Bartender</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-state" id="shiftsEmpty" style="display:none;">
+                        <i class="fas fa-glass-cheers"></i>
+                        <p>No upcoming shifts</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bartenders Panel -->
+            <div class="panel" id="bartendersPanel">
+                <div class="panel-header">
+                    <h2>Bartender Roster</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showBartenderModal()">
+                        <i class="fas fa-user-plus"></i> Add Bartender
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <div class="table-wrapper">
+                        <table id="bartendersTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-state" id="bartendersEmpty" style="display:none;">
+                        <i class="fas fa-user-friends"></i>
+                        <p>No bartenders on roster yet</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Events Panel -->
             <div class="panel" id="eventsPanel">
                 <div class="panel-header">
@@ -861,6 +929,93 @@
         </div>
     </div>
 
+    <!-- Bartender Modal -->
+    <div class="modal-overlay" id="bartenderModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="bartenderModalTitle">Add Bartender</h3>
+                <button class="modal-close" onclick="closeModal('bartenderModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="bartenderForm">
+                    <input type="hidden" id="bartenderId">
+                    <div class="form-group">
+                        <label for="bartenderName">Name *</label>
+                        <input type="text" id="bartenderName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bartenderEmail">Email</label>
+                        <input type="email" id="bartenderEmail" placeholder="For shift notifications">
+                    </div>
+                    <div class="form-group">
+                        <label for="bartenderPhone">Phone (for SMS)</label>
+                        <input type="tel" id="bartenderPhone" placeholder="+15085551234">
+                    </div>
+                    <div class="form-group">
+                        <label for="bartenderNotes">Notes</label>
+                        <textarea id="bartenderNotes" rows="2" placeholder="Availability, preferences, etc."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;cursor:pointer;">
+                            <input type="checkbox" id="bartenderActive" checked style="width:auto;margin-right:10px;">
+                            <span>Active (receives open-shift notifications)</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('bartenderModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveBartender()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shift Modal -->
+    <div class="modal-overlay" id="shiftModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="shiftModalTitle">Add Shift</h3>
+                <button class="modal-close" onclick="closeModal('shiftModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="shiftForm">
+                    <input type="hidden" id="shiftId">
+                    <input type="hidden" id="shiftRentalId">
+                    <div class="form-group">
+                        <label for="shiftDate">Date *</label>
+                        <input type="date" id="shiftDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="shiftStartTime">Start Time</label>
+                        <input type="time" id="shiftStartTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="shiftEndTime">End Time</label>
+                        <input type="time" id="shiftEndTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="shiftLabel">Label</label>
+                        <input type="text" id="shiftLabel" placeholder="e.g., Friday Club Night, Hall rental">
+                    </div>
+                    <div class="form-group">
+                        <label for="shiftBartender">Assigned Bartender</label>
+                        <select id="shiftBartender">
+                            <option value="">— Unassigned —</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="shiftNotes">Notes (included in notifications)</label>
+                        <textarea id="shiftNotes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('shiftModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveShift()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = 'https://api.somersetamericanlegion.org';        let token = localStorage.getItem('legion_token');
         let currentUser = JSON.parse(localStorage.getItem('legion_user') || 'null');
@@ -881,6 +1036,10 @@
                 // Load data for specific panels
                 if (tab.dataset.panel === 'subscribers') {
                     loadSubscribers();
+                } else if (tab.dataset.panel === 'shifts') {
+                    loadShifts();
+                } else if (tab.dataset.panel === 'bartenders') {
+                    loadBartenders();
                 }
             });
         });
@@ -930,6 +1089,8 @@
             
             loadRentals();
             loadEvents();
+            loadBartenders();
+            loadShifts();
             if (currentUser.role === 'webmaster') {
                 loadUsers();
             }
@@ -960,26 +1121,47 @@
         }
 
         // Load data
+        let shiftsByRentalId = {};
         async function loadRentals() {
-            const rentals = await api('/api/admin/rentals');
+            const [rentals, shifts] = await Promise.all([
+                api('/api/admin/rentals'),
+                api('/api/admin/shifts').catch(() => [])
+            ]);
             rentalsData = rentals; // Store for edit function
+            shiftsByRentalId = {};
+            (Array.isArray(shifts) ? shifts : []).forEach(s => {
+                if (s.rental_id) shiftsByRentalId[s.rental_id] = s;
+            });
             const tbody = document.querySelector('#rentalsTable tbody');
             const empty = document.getElementById('rentalsEmpty');
-            
+
             if (!rentals.length) {
                 tbody.innerHTML = '';
                 empty.style.display = 'block';
                 return;
             }
-            
+
             empty.style.display = 'none';
-            tbody.innerHTML = rentals.map(r => `
+            tbody.innerHTML = rentals.map(r => {
+                const shift = shiftsByRentalId[r.id];
+                let bartenderCell;
+                if (!shift) {
+                    bartenderCell = '<span style="color:#999">—</span>';
+                } else if (shift.status === 'open') {
+                    bartenderCell = '<span class="badge badge-pending">Open</span>';
+                } else if (shift.bartender_name) {
+                    bartenderCell = shift.bartender_name;
+                } else {
+                    bartenderCell = '<span class="badge badge-pending">Unassigned</span>';
+                }
+                return `
                 <tr>
                     <td>${formatDate(r.event_date)}</td>
                     <td>${r.start_time ? formatTime(r.start_time) : '-'}${r.kitchen_rental ? '<br><small>+ Kitchen</small>' : ''}</td>
                     <td>${r.event_type}</td>
                     <td>${r.contact_name}<br><small>${r.contact_email}</small></td>
                     <td><span class="badge badge-${r.status}">${r.status}</span></td>
+                    <td>${bartenderCell}</td>
                     <td class="actions">
                         <button class="btn btn-sm" onclick="viewRental(${r.id})" title="View Details">
                             <i class="fas fa-eye"></i>
@@ -997,7 +1179,7 @@
                         </button>
                     </td>
                 </tr>
-            `).join('');
+            `; }).join('');
         }
 
         async function loadEvents() {
@@ -1107,6 +1289,261 @@
         function exportSubscribers(e) {
             e.preventDefault();
             window.open(`${API_URL}/api/admin/subscribers/export`, '_blank');
+        }
+
+        // ============ BARTENDER FUNCTIONS ============
+        let bartendersData = [];
+
+        async function loadBartenders() {
+            try {
+                bartendersData = await api('/api/admin/bartenders');
+                const tbody = document.querySelector('#bartendersTable tbody');
+                const empty = document.getElementById('bartendersEmpty');
+
+                if (!bartendersData.length) {
+                    tbody.innerHTML = '';
+                    empty.style.display = 'block';
+                } else {
+                    empty.style.display = 'none';
+                    tbody.innerHTML = bartendersData.map(b => `
+                        <tr>
+                            <td>${b.name}</td>
+                            <td>${b.email ? `<a href="mailto:${b.email}">${b.email}</a>` : '-'}</td>
+                            <td>${b.phone ? `<a href="tel:${b.phone}">${b.phone}</a>` : '-'}</td>
+                            <td><span class="badge ${b.active ? 'badge-paid' : 'badge-cancelled'}">
+                                ${b.active ? 'Active' : 'Inactive'}
+                            </span></td>
+                            <td class="actions">
+                                <button class="btn btn-sm" onclick="editBartender(${b.id})" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteBartender(${b.id})" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Refresh the bartender dropdown in the shift modal too
+                populateShiftBartenderSelect();
+            } catch (err) {
+                console.error('Failed to load bartenders:', err);
+            }
+        }
+
+        function showBartenderModal() {
+            document.getElementById('bartenderModalTitle').textContent = 'Add Bartender';
+            document.getElementById('bartenderId').value = '';
+            document.getElementById('bartenderName').value = '';
+            document.getElementById('bartenderEmail').value = '';
+            document.getElementById('bartenderPhone').value = '';
+            document.getElementById('bartenderNotes').value = '';
+            document.getElementById('bartenderActive').checked = true;
+            document.getElementById('bartenderModal').classList.add('active');
+        }
+
+        function editBartender(id) {
+            const b = bartendersData.find(x => x.id === id);
+            if (!b) return;
+            document.getElementById('bartenderModalTitle').textContent = 'Edit Bartender';
+            document.getElementById('bartenderId').value = b.id;
+            document.getElementById('bartenderName').value = b.name || '';
+            document.getElementById('bartenderEmail').value = b.email || '';
+            document.getElementById('bartenderPhone').value = b.phone || '';
+            document.getElementById('bartenderNotes').value = b.notes || '';
+            document.getElementById('bartenderActive').checked = !!b.active;
+            document.getElementById('bartenderModal').classList.add('active');
+        }
+
+        async function saveBartender() {
+            const id = document.getElementById('bartenderId').value;
+            const data = {
+                name: document.getElementById('bartenderName').value.trim(),
+                email: document.getElementById('bartenderEmail').value.trim(),
+                phone: document.getElementById('bartenderPhone').value.trim(),
+                notes: document.getElementById('bartenderNotes').value.trim(),
+                active: document.getElementById('bartenderActive').checked,
+            };
+            if (!data.name) { alert('Name is required'); return; }
+            if (id) {
+                await api(`/api/admin/bartenders/${id}`, 'PUT', data);
+            } else {
+                await api('/api/admin/bartenders', 'POST', data);
+            }
+            closeModal('bartenderModal');
+            loadBartenders();
+        }
+
+        async function deleteBartender(id) {
+            if (!confirm('Remove this bartender from the roster? Their existing shift assignments will be unassigned.')) return;
+            await api(`/api/admin/bartenders/${id}`, 'DELETE');
+            loadBartenders();
+            loadShifts();
+        }
+
+        // ============ SHIFT FUNCTIONS ============
+        let shiftsData = [];
+
+        function shiftStatusBadgeClass(status) {
+            return ({
+                unassigned: 'badge-pending',
+                assigned: 'badge-approved',
+                open: 'badge-pending',
+                covered: 'badge-paid',
+                cancelled: 'badge-cancelled',
+            })[status] || 'badge-pending';
+        }
+
+        async function loadShifts() {
+            try {
+                shiftsData = await api('/api/admin/shifts');
+                const tbody = document.querySelector('#shiftsTable tbody');
+                const empty = document.getElementById('shiftsEmpty');
+
+                if (!shiftsData.length) {
+                    tbody.innerHTML = '';
+                    empty.style.display = 'block';
+                    return;
+                }
+
+                empty.style.display = 'none';
+                tbody.innerHTML = shiftsData.map(s => {
+                    const timeLabel = s.start_time
+                        ? `${formatTime(s.start_time)}${s.end_time ? ' – ' + formatTime(s.end_time) : ''}`
+                        : '-';
+                    const labelText = s.label || (s.rental_id ? `Rental: ${s.rental_event_type || ''}` : '-');
+                    const bartenderText = s.bartender_name || '<span style="color:#999">— None —</span>';
+                    const canNotify = s.status !== 'cancelled' && s.status !== 'covered';
+                    const canMarkCovered = s.status === 'open' || s.status === 'assigned';
+                    return `
+                        <tr>
+                            <td>${formatDate(s.shift_date)}</td>
+                            <td>${timeLabel}</td>
+                            <td>${labelText}${s.rental_id ? ` <small style="color:#666">(rental #${s.rental_id})</small>` : ''}</td>
+                            <td><span class="badge ${shiftStatusBadgeClass(s.status)}">${s.status}</span></td>
+                            <td>${bartenderText}</td>
+                            <td class="actions">
+                                <button class="btn btn-sm" onclick="editShift(${s.id})" title="Edit / Assign">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                ${canNotify ? `
+                                    <button class="btn btn-sm btn-warning" onclick="notifyShift(${s.id})" title="Mark open & notify bartenders">
+                                        <i class="fas fa-bullhorn"></i>
+                                    </button>
+                                ` : ''}
+                                ${canMarkCovered ? `
+                                    <button class="btn btn-sm btn-success" onclick="markCovered(${s.id})" title="Mark covered">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-sm btn-danger" onclick="deleteShift(${s.id})" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Failed to load shifts:', err);
+            }
+        }
+
+        function populateShiftBartenderSelect() {
+            const sel = document.getElementById('shiftBartender');
+            if (!sel) return;
+            const current = sel.value;
+            const activeOptions = (bartendersData || [])
+                .filter(b => b.active)
+                .map(b => `<option value="${b.id}">${b.name}</option>`)
+                .join('');
+            sel.innerHTML = '<option value="">— Unassigned —</option>' + activeOptions;
+            sel.value = current;
+        }
+
+        async function showShiftModal() {
+            // Make sure the bartender dropdown is current
+            if (!bartendersData.length) await loadBartenders();
+            else populateShiftBartenderSelect();
+
+            document.getElementById('shiftModalTitle').textContent = 'Add Shift';
+            document.getElementById('shiftId').value = '';
+            document.getElementById('shiftRentalId').value = '';
+            document.getElementById('shiftDate').value = '';
+            document.getElementById('shiftStartTime').value = '';
+            document.getElementById('shiftEndTime').value = '';
+            document.getElementById('shiftLabel').value = '';
+            document.getElementById('shiftNotes').value = '';
+            document.getElementById('shiftBartender').value = '';
+            document.getElementById('shiftModal').classList.add('active');
+        }
+
+        async function editShift(id) {
+            if (!bartendersData.length) await loadBartenders();
+            else populateShiftBartenderSelect();
+
+            const s = shiftsData.find(x => x.id === id);
+            if (!s) return;
+            document.getElementById('shiftModalTitle').textContent = 'Edit Shift';
+            document.getElementById('shiftId').value = s.id;
+            document.getElementById('shiftRentalId').value = s.rental_id || '';
+            document.getElementById('shiftDate').value = s.shift_date;
+            document.getElementById('shiftStartTime').value = s.start_time || '';
+            document.getElementById('shiftEndTime').value = s.end_time || '';
+            document.getElementById('shiftLabel').value = s.label || '';
+            document.getElementById('shiftNotes').value = s.notes || '';
+            document.getElementById('shiftBartender').value = s.bartender_id || '';
+            document.getElementById('shiftModal').classList.add('active');
+        }
+
+        async function saveShift() {
+            const id = document.getElementById('shiftId').value;
+            const bartenderVal = document.getElementById('shiftBartender').value;
+            const rentalVal = document.getElementById('shiftRentalId').value;
+            const data = {
+                shift_date: document.getElementById('shiftDate').value,
+                start_time: document.getElementById('shiftStartTime').value || null,
+                end_time: document.getElementById('shiftEndTime').value || null,
+                label: document.getElementById('shiftLabel').value.trim() || null,
+                notes: document.getElementById('shiftNotes').value.trim() || null,
+                bartender_id: bartenderVal ? parseInt(bartenderVal, 10) : null,
+                rental_id: rentalVal ? parseInt(rentalVal, 10) : null,
+            };
+            if (!data.shift_date) { alert('Date is required'); return; }
+            if (id) {
+                await api(`/api/admin/shifts/${id}`, 'PUT', data);
+            } else {
+                await api('/api/admin/shifts', 'POST', data);
+            }
+            closeModal('shiftModal');
+            loadShifts();
+            // Refresh rentals if the shift was tied to one
+            if (data.rental_id) loadRentals();
+        }
+
+        async function deleteShift(id) {
+            if (!confirm('Delete this shift?')) return;
+            await api(`/api/admin/shifts/${id}`, 'DELETE');
+            loadShifts();
+            loadRentals();
+        }
+
+        async function notifyShift(id) {
+            if (!confirm('Mark this shift as OPEN and notify all active bartenders by email + SMS?')) return;
+            const result = await api(`/api/admin/shifts/${id}/notify`, 'POST');
+            if (result && result.success) {
+                alert(`Notified ${result.recipients} bartender(s)\nEmails: ${result.email_sent} sent, ${result.email_failed} failed\nSMS: ${result.sms_sent} sent, ${result.sms_failed} failed`);
+            } else {
+                alert('Failed to notify: ' + (result?.error || 'unknown error'));
+            }
+            loadShifts();
+            loadRentals();
+        }
+
+        async function markCovered(id) {
+            await api(`/api/admin/shifts/${id}`, 'PUT', { status: 'covered' });
+            loadShifts();
+            loadRentals();
         }
 
         // Rental functions
