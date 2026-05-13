@@ -920,6 +920,13 @@
                             <option value="pending">Pending</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="rentalAddBartender">Bartender</label>
+                        <select id="rentalAddBartender">
+                            <option value="">— Unassigned —</option>
+                        </select>
+                        <small id="rentalAddBartenderHelp" style="display:block;color:#666;margin-top:4px"></small>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -1567,7 +1574,22 @@
         // Rental functions
         let rentalsData = [];
         
-        function showRentalAddModal() {
+        function populateRentalBartenderSelect() {
+            const sel = document.getElementById('rentalAddBartender');
+            if (!sel) return;
+            const current = sel.value;
+            const options = ['<option value="">— Unassigned —</option>']
+                .concat((bartendersData || []).filter(b => b.active).map(b =>
+                    `<option value="${b.id}">${b.name}</option>`
+                ))
+                .join('');
+            sel.innerHTML = options;
+            sel.value = current;
+        }
+
+        async function showRentalAddModal() {
+            if (!bartendersData.length) await loadBartenders().catch(() => {});
+            populateRentalBartenderSelect();
             document.getElementById('rentalAddModalTitle').textContent = 'Add Rental';
             document.getElementById('rentalAddId').value = '';
             document.getElementById('rentalAddDate').value = '';
@@ -1579,12 +1601,17 @@
             document.getElementById('rentalAddDetails').value = '';
             document.getElementById('rentalAddKitchen').checked = false;
             document.getElementById('rentalAddStatus').value = 'approved';
+            document.getElementById('rentalAddBartender').value = '';
+            document.getElementById('rentalAddBartenderHelp').textContent =
+                'Bartender can only be saved once the rental is approved or paid.';
             document.getElementById('rentalAddModal').classList.add('active');
         }
-        
-        function editRental(id) {
+
+        async function editRental(id) {
             const rental = rentalsData.find(r => r.id === id);
             if (!rental) return;
+            if (!bartendersData.length) await loadBartenders().catch(() => {});
+            populateRentalBartenderSelect();
 
             document.getElementById('rentalAddModalTitle').textContent = 'Edit Rental';
             document.getElementById('rentalAddId').value = id;
@@ -1597,11 +1624,19 @@
             document.getElementById('rentalAddDetails').value = rental.details || '';
             document.getElementById('rentalAddKitchen').checked = rental.kitchen_rental || false;
             document.getElementById('rentalAddStatus').value = rental.status;
+
+            const shift = shiftsByRentalId[id];
+            document.getElementById('rentalAddBartender').value = shift?.bartender_id || '';
+            document.getElementById('rentalAddBartenderHelp').textContent = shift
+                ? ''
+                : 'Bartender can only be saved once the rental is approved or paid.';
+
             document.getElementById('rentalAddModal').classList.add('active');
         }
         
         async function saveRentalAdd() {
             const id = document.getElementById('rentalAddId').value;
+            const bartenderVal = document.getElementById('rentalAddBartender').value;
             const data = {
                 event_date: document.getElementById('rentalAddDate').value,
                 start_time: document.getElementById('rentalAddStartTime').value,
@@ -1618,14 +1653,28 @@
                 alert('Please fill in all required fields');
                 return;
             }
-            
+
             try {
+                let rentalId = id ? parseInt(id, 10) : null;
                 if (id) {
                     await api(`/api/admin/rentals/${id}`, 'PUT', data);
                 } else {
-                    await api('/api/admin/rentals', 'POST', data);
+                    const created = await api('/api/admin/rentals', 'POST', data);
+                    rentalId = created?.id || null;
                 }
-                
+
+                // Sync bartender onto the rental's shift (created server-side on approval/payment).
+                const shifts = await api('/api/admin/shifts').catch(() => []);
+                const shift = (Array.isArray(shifts) ? shifts : []).find(s => s.rental_id === rentalId);
+                const desiredBartenderId = bartenderVal ? parseInt(bartenderVal, 10) : null;
+                if (shift) {
+                    if ((shift.bartender_id || null) !== desiredBartenderId) {
+                        await api(`/api/admin/shifts/${shift.id}`, 'PUT', { bartender_id: desiredBartenderId });
+                    }
+                } else if (desiredBartenderId) {
+                    alert('Rental saved. Bartender was not assigned because no shift exists yet — approve or mark the rental paid first, then re-edit to assign.');
+                }
+
                 closeModal('rentalAddModal');
                 loadRentals();
             } catch (error) {
