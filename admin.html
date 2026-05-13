@@ -1122,10 +1122,12 @@
 
         // Load data
         let shiftsByRentalId = {};
+        let bartendersData = [];
         async function loadRentals() {
             const [rentals, shifts] = await Promise.all([
                 api('/api/admin/rentals'),
-                api('/api/admin/shifts').catch(() => [])
+                api('/api/admin/shifts').catch(() => []),
+                bartendersData.length ? Promise.resolve() : loadBartenders().catch(() => {})
             ]);
             rentalsData = rentals; // Store for edit function
             shiftsByRentalId = {};
@@ -1142,17 +1144,22 @@
             }
 
             empty.style.display = 'none';
+            const activeBartenders = (bartendersData || []).filter(b => b.active);
             tbody.innerHTML = rentals.map(r => {
                 const shift = shiftsByRentalId[r.id];
                 let bartenderCell;
                 if (!shift) {
-                    bartenderCell = '<span style="color:#999">—</span>';
-                } else if (shift.status === 'open') {
-                    bartenderCell = '<span class="badge badge-pending">Open</span>';
-                } else if (shift.bartender_name) {
-                    bartenderCell = shift.bartender_name;
+                    bartenderCell = '<span style="color:#999" title="Shift is created when the rental is approved">—</span>';
                 } else {
-                    bartenderCell = '<span class="badge badge-pending">Unassigned</span>';
+                    const opts = ['<option value="">— Unassigned —</option>']
+                        .concat(activeBartenders.map(b =>
+                            `<option value="${b.id}"${shift.bartender_id === b.id ? ' selected' : ''}>${b.name}</option>`
+                        ))
+                        .join('');
+                    const openBadge = shift.status === 'open'
+                        ? '<div style="margin-top:4px"><span class="badge badge-pending">Open – notified</span></div>'
+                        : '';
+                    bartenderCell = `<select onchange="assignRentalBartender(${shift.id}, this.value)" style="max-width:170px;padding:4px;font-size:0.9em">${opts}</select>${openBadge}`;
                 }
                 return `
                 <tr>
@@ -1292,7 +1299,6 @@
         }
 
         // ============ BARTENDER FUNCTIONS ============
-        let bartendersData = [];
 
         async function loadBartenders() {
             try {
@@ -1526,6 +1532,18 @@
             await api(`/api/admin/shifts/${id}`, 'DELETE');
             loadShifts();
             loadRentals();
+        }
+
+        async function assignRentalBartender(shiftId, bartenderVal) {
+            const payload = { bartender_id: bartenderVal ? parseInt(bartenderVal, 10) : null };
+            try {
+                await api(`/api/admin/shifts/${shiftId}`, 'PUT', payload);
+                await loadRentals();
+                loadShifts();
+            } catch (err) {
+                alert('Failed to update bartender: ' + (err.message || err));
+                loadRentals();
+            }
         }
 
         async function notifyShift(id) {
