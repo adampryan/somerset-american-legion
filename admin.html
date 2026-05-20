@@ -1627,10 +1627,16 @@
             if (!bartendersData.length) await loadBartenders().catch(() => {});
             populateRentalBartenderSelect();
 
+            // Normalize start_time to HH:MM format (remove seconds if present)
+            let startTime = rental.start_time || '';
+            if (startTime && startTime.length > 5) {
+                startTime = startTime.substring(0, 5);
+            }
+
             document.getElementById('rentalAddModalTitle').textContent = 'Edit Rental';
             document.getElementById('rentalAddId').value = id;
             document.getElementById('rentalAddDate').value = rental.event_date;
-            document.getElementById('rentalAddStartTime').value = rental.start_time || '';
+            document.getElementById('rentalAddStartTime').value = startTime;
             document.getElementById('rentalAddType').value = rental.event_type;
             document.getElementById('rentalAddContact').value = rental.contact_name;
             document.getElementById('rentalAddEmail').value = rental.contact_email || '';
