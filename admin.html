@@ -872,6 +872,20 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label style="display:flex;align-items:center;cursor:pointer;">
+                            <input type="checkbox" id="rentalAddExtraHoursCheck" style="width:auto;margin-right:10px;" onchange="toggleExtraHours()">
+                            <span>Add Extra Hours (+$25/hr)</span>
+                        </label>
+                        <div id="rentalAddExtraHoursContainer" style="display:none;margin-top:10px;">
+                            <select id="rentalAddExtraHours" style="width:auto;">
+                                <option value="1">1 hour</option>
+                                <option value="2">2 hours</option>
+                                <option value="3">3 hours</option>
+                                <option value="4">4 hours</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label for="rentalAddType">Event Type *</label>
                         <select id="rentalAddType" required>
                             <option value="">Select type...</option>
@@ -1190,7 +1204,7 @@
                 return `
                 <tr>
                     <td>${formatDate(r.event_date)}</td>
-                    <td>${r.start_time ? formatTime(r.start_time) : '-'}${r.kitchen_rental ? '<br><small>+ Kitchen</small>' : ''}</td>
+                    <td>${r.start_time ? formatTime(r.start_time) : '-'}${r.extra_hours ? `<br><small>+${r.extra_hours}hr</small>` : ''}${r.kitchen_rental ? '<br><small>+ Kitchen</small>' : ''}</td>
                     <td>${r.event_type}</td>
                     <td>${r.contact_name}<br><small>${r.contact_email}</small></td>
                     <td><span class="badge badge-${r.status}">${r.status}</span></td>
@@ -1604,6 +1618,11 @@
             sel.value = current;
         }
 
+        function toggleExtraHours() {
+            const checked = document.getElementById('rentalAddExtraHoursCheck').checked;
+            document.getElementById('rentalAddExtraHoursContainer').style.display = checked ? 'block' : 'none';
+        }
+
         async function showRentalAddModal() {
             if (!bartendersData.length) await loadBartenders().catch(() => {});
             populateRentalBartenderSelect();
@@ -1611,6 +1630,9 @@
             document.getElementById('rentalAddId').value = '';
             document.getElementById('rentalAddDate').value = '';
             document.getElementById('rentalAddStartTime').value = '';
+            document.getElementById('rentalAddExtraHoursCheck').checked = false;
+            document.getElementById('rentalAddExtraHours').value = '1';
+            document.getElementById('rentalAddExtraHoursContainer').style.display = 'none';
             document.getElementById('rentalAddType').value = '';
             document.getElementById('rentalAddContact').value = '';
             document.getElementById('rentalAddEmail').value = '';
@@ -1640,6 +1662,13 @@
             document.getElementById('rentalAddId').value = id;
             document.getElementById('rentalAddDate').value = rental.event_date;
             document.getElementById('rentalAddStartTime').value = startTime;
+
+            // Handle extra hours
+            const hasExtraHours = rental.extra_hours && rental.extra_hours > 0;
+            document.getElementById('rentalAddExtraHoursCheck').checked = hasExtraHours;
+            document.getElementById('rentalAddExtraHours').value = hasExtraHours ? rental.extra_hours : '1';
+            document.getElementById('rentalAddExtraHoursContainer').style.display = hasExtraHours ? 'block' : 'none';
+
             document.getElementById('rentalAddType').value = rental.event_type;
             document.getElementById('rentalAddContact').value = rental.contact_name;
             document.getElementById('rentalAddEmail').value = rental.contact_email || '';
@@ -1660,9 +1689,11 @@
         async function saveRentalAdd() {
             const id = document.getElementById('rentalAddId').value;
             const bartenderVal = document.getElementById('rentalAddBartender').value;
+            const extraHoursChecked = document.getElementById('rentalAddExtraHoursCheck').checked;
             const data = {
                 event_date: document.getElementById('rentalAddDate').value,
                 start_time: document.getElementById('rentalAddStartTime').value,
+                extra_hours: extraHoursChecked ? parseInt(document.getElementById('rentalAddExtraHours').value, 10) : 0,
                 event_type: document.getElementById('rentalAddType').value,
                 contact_name: document.getElementById('rentalAddContact').value,
                 contact_email: document.getElementById('rentalAddEmail').value || 'internal@legion.local',
