@@ -1024,8 +1024,15 @@
     </div>
 
     <script>
-        const API_URL = 'https://api.somersetamericanlegion.org';        let token = localStorage.getItem('legion_token');
+        const API_URL = 'https://api.somersetamericanlegion.org';
+        let token = localStorage.getItem('legion_token');
         let currentUser = JSON.parse(localStorage.getItem('legion_user') || 'null');
+
+        // Data stores (must be declared before functions that use them)
+        let rentalsData = [];
+        let bartendersData = [];
+        let shiftsData = [];
+        let shiftsByRentalId = {};
 
         // Check auth on load
         if (token && currentUser) {
@@ -1142,8 +1149,6 @@
         }
 
         // Load data
-        let shiftsByRentalId = {};
-        let bartendersData = [];
         async function loadRentals() {
             const [rentals, shifts] = await Promise.all([
                 api('/api/admin/rentals'),
@@ -1410,7 +1415,6 @@
         }
 
         // ============ SHIFT FUNCTIONS ============
-        let shiftsData = [];
 
         function shiftStatusBadgeClass(status) {
             return ({
@@ -1586,8 +1590,7 @@
         }
 
         // Rental functions
-        let rentalsData = [];
-        
+
         function populateRentalBartenderSelect() {
             const sel = document.getElementById('rentalAddBartender');
             if (!sel) return;
