@@ -1047,6 +1047,7 @@
         let bartendersData = [];
         let shiftsData = [];
         let shiftsByRentalId = {};
+        let eventsData = [];
 
         // Check auth on load
         if (token && currentUser) {
@@ -1230,24 +1231,24 @@
         }
 
         async function loadEvents() {
-            const events = await api('/api/admin/events');
+            eventsData = await api('/api/admin/events');
             const tbody = document.querySelector('#eventsTable tbody');
             const empty = document.getElementById('eventsEmpty');
-            
-            if (!events.length) {
+
+            if (!eventsData.length) {
                 tbody.innerHTML = '';
                 empty.style.display = 'block';
                 return;
             }
-            
+
             empty.style.display = 'none';
-            tbody.innerHTML = events.map(e => `
+            tbody.innerHTML = eventsData.map(e => `
                 <tr>
                     <td>${formatDate(e.event_date)}</td>
                     <td>${e.event_time || '-'}</td>
                     <td>${e.title}</td>
                     <td class="actions">
-                        <button class="btn btn-sm" onclick="editEvent(${e.id}, '${e.title}', '${e.event_date}', '${e.event_time || ''}', '${(e.description || '').replace(/'/g, "\\'")}')">
+                        <button class="btn btn-sm" onclick="editEvent(${e.id})">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn btn-sm btn-danger" onclick="deleteEvent(${e.id})">
@@ -1817,13 +1818,15 @@
             document.getElementById('eventModal').classList.add('active');
         }
 
-        function editEvent(id, title, date, time, desc) {
+        function editEvent(id) {
+            const event = eventsData.find(e => e.id === id);
+            if (!event) return;
             document.getElementById('eventModalTitle').textContent = 'Edit Event';
             document.getElementById('eventId').value = id;
-            document.getElementById('eventTitle').value = title;
-            document.getElementById('eventDate').value = date;
-            document.getElementById('eventTime').value = time;
-            document.getElementById('eventDesc').value = desc;
+            document.getElementById('eventTitle').value = event.title || '';
+            document.getElementById('eventDate').value = event.event_date || '';
+            document.getElementById('eventTime').value = event.event_time || '';
+            document.getElementById('eventDesc').value = event.description || '';
             document.getElementById('eventModal').classList.add('active');
         }
 
