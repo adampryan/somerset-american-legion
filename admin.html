@@ -1167,7 +1167,9 @@
         async function loadRentals() {
             const [rentals, shifts] = await Promise.all([
                 api('/api/admin/rentals'),
-                api('/api/admin/shifts').catch(() => []),
+                // from=1970: the shifts endpoint defaults to upcoming-only, which would
+                // hide shifts whose rental was rescheduled while the shift kept the old date.
+                api('/api/admin/shifts?from=1970-01-01').catch(() => []),
                 bartendersData.length ? Promise.resolve() : loadBartenders().catch(() => {})
             ]);
             rentalsData = rentals; // Store for edit function
@@ -1682,7 +1684,9 @@
             document.getElementById('rentalAddBartender').value = shift?.bartender_id || '';
             document.getElementById('rentalAddBartenderHelp').textContent = shift
                 ? ''
-                : 'Bartender can only be saved once the rental is approved or paid.';
+                : (rental.status === 'approved' || rental.status === 'paid')
+                    ? 'A shift will be created for this rental when you save.'
+                    : 'Bartender can only be saved once the rental is approved or paid.';
 
             document.getElementById('rentalAddModal').classList.add('active');
         }
@@ -1719,7 +1723,7 @@
                 }
 
                 // Sync bartender onto the rental's shift (created server-side on approval/payment).
-                const shifts = await api('/api/admin/shifts').catch(() => []);
+                const shifts = await api('/api/admin/shifts?from=1970-01-01').catch(() => []);
                 const shift = (Array.isArray(shifts) ? shifts : []).find(s => s.rental_id === rentalId);
                 const desiredBartenderId = bartenderVal ? parseInt(bartenderVal, 10) : null;
                 if (shift) {
@@ -1727,7 +1731,9 @@
                         await api(`/api/admin/shifts/${shift.id}`, 'PUT', { bartender_id: desiredBartenderId });
                     }
                 } else if (desiredBartenderId) {
-                    alert('Rental saved. Bartender was not assigned because no shift exists yet — approve or mark the rental paid first, then re-edit to assign.');
+                    alert(data.status === 'approved' || data.status === 'paid'
+                        ? 'Rental saved, but its shift could not be found, so the bartender was not assigned. Refresh the page and try again.'
+                        : 'Rental saved. Bartender was not assigned because shifts are only created once the rental is approved or paid — update the status, then re-edit to assign.');
                 }
 
                 closeModal('rentalAddModal');
