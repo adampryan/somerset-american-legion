@@ -762,9 +762,17 @@
             <div class="panel" id="financePanel">
                 <div class="panel-header">
                     <h2>Finance Officer Report</h2>
-                    <button class="btn btn-primary btn-sm" onclick="printFinanceReport()">
-                        <i class="fas fa-print"></i> Print / PDF
-                    </button>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-primary btn-sm" onclick="downloadLedger('2025')" title="Reconciled 2025 transaction ledger (Excel)">
+                            <i class="fas fa-file-excel"></i> 2025 Ledger
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="downloadLedger('2026')" title="2026 receipts, bills &amp; flags (Excel)">
+                            <i class="fas fa-file-excel"></i> 2026 Ledger
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="printFinanceReport()">
+                            <i class="fas fa-print"></i> Print / PDF
+                        </button>
+                    </div>
                 </div>
                 <div class="panel-body">
                     <div class="empty-state" id="financeLoading">
@@ -1201,6 +1209,30 @@
             if (frame && frame.style.display !== 'none' && frame.contentWindow) {
                 frame.contentWindow.focus();
                 frame.contentWindow.print();
+            }
+        }
+
+        // Download a ledger workbook. Uses fetch (not a plain link) so the bearer
+        // token can be sent; the .xlsx comes back as a blob we save locally.
+        async function downloadLedger(year) {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/ledger/${year}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout('Session expired. Please sign in again.'); return; }
+                if (res.status === 403) { alert('You do not have access to the ledgers.'); return; }
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Post228_${year}_Ledger.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (err) {
+                alert(`Could not download the ${year} ledger. ${err.message}`);
             }
         }
 
