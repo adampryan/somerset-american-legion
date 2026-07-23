@@ -103,11 +103,8 @@
         <div class="head"><strong id="cartTitle">New Order</strong><span class="spacer" style="flex:1"></span><button onclick="clearCart()" style="border:none;background:none;color:#a00;">Clear</button></div>
         <div class="items" id="cartItems"><p style="color:#999;text-align:center;margin-top:30px;">Tap items to add</p></div>
         <div class="totals">
-          <div class="row"><span>Subtotal</span><strong id="subtotal">$0.00</strong></div>
-          <div class="row" id="tipRow" style="display:none;"><span>Tip</span><strong id="tipAmt">$0.00</strong></div>
           <div class="row grand"><span>Total</span><span id="grand">$0.00</span></div>
-          <div style="font-size:.8rem;color:#666;margin-top:6px;">Cash tip (card &amp; QR ask the customer):</div>
-          <div class="tips" id="tips"></div>
+          <div style="font-size:.75rem;color:#999;margin-top:4px;">Tip is added at payment (card &amp; QR: customer; cash: next screen)</div>
         </div>
         <div class="pay">
           <button class="cash" onclick="charge('cash')">💵 Cash</button>
@@ -134,7 +131,7 @@
     // so no separate passcode is needed.
     let EMBEDDED=false;
     if(!TOKEN){ const adm=localStorage.getItem('legion_token'); if(adm){ TOKEN=adm; EMBEDDED=true; } }
-    let products=[], cart=[], curCat='all', tipPct=0, customTip=null, orderId=null, splitWays=1;
+    let products=[], cart=[], curCat='all', orderId=null, splitWays=1;
     const stripe=window.Stripe?Stripe(PK):null;
     const $=id=>document.getElementById(id);
     const money=c=>'$'+(c/100).toFixed(2);
@@ -169,7 +166,7 @@
       if(EMBEDDED) $('lockBtn').style.display='none'; // inside admin — no lock button
       const sv=localStorage.getItem('pos_server'); if(sv)$('server').value=sv;
       $('server').addEventListener('change',()=>localStorage.setItem('pos_server',$('server').value));
-      await loadMenu(); renderTips(); refreshTabs();
+      await loadMenu(); refreshTabs();
     }
 
     // ---------- menu ----------
@@ -196,25 +193,12 @@
       renderCart();
     }
     function chg(id,d){ const it=cart.find(x=>x.product_id===id); if(!it)return; it.qty+=d; if(it.qty<=0)cart=cart.filter(x=>x!==it); renderCart(); }
-    function clearCart(){ cart=[]; orderId=null; splitWays=1; $('cartTitle').textContent='New Order'; customTip=null; tipPct=0; renderTips(); renderCart(); }
+    function clearCart(){ cart=[]; orderId=null; splitWays=1; $('cartTitle').textContent='New Order'; renderCart(); }
     function subtotal(){ return cart.reduce((s,i)=>s+i.price*i.qty,0); }
-    function tipCents(){ return customTip!=null?customTip:Math.round(subtotal()*tipPct); }
     function renderCart(){
       if(!cart.length){ $('cartItems').innerHTML='<p style="color:#999;text-align:center;margin-top:30px;">Tap items to add</p>'; }
       else $('cartItems').innerHTML=cart.map(i=>`<div class="ci"><span class="n">${i.name}</span><span class="q"><button onclick="window._chg(${i.product_id},-1)">−</button>${i.qty}<button onclick="window._chg(${i.product_id},1)">+</button></span><span>${money(i.price*i.qty)}</span></div>`).join('');
-      const sub=subtotal(), tip=tipCents();
-      $('subtotal').textContent=money(sub);
-      $('tipAmt').textContent=money(tip); $('tipRow').style.display=tip>0?'flex':'none';
-      $('grand').textContent=money(sub+tip);
-    }
-    function renderTips(){
-      const opts=[['No',0],['15%',.15],['18%',.18],['20%',.20],['$',null]];
-      $('tips').innerHTML=opts.map((o,i)=>`<button data-pct="${o[1]}" class="${(customTip==null&&tipPct===o[1])?'sel':''}">${o[0]}</button>`).join('');
-      $('tips').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
-        if(b.dataset.pct==='null'){ const v=prompt('Tip amount ($):'); customTip=Math.max(0,Math.round((parseFloat(v)||0)*100)); }
-        else { customTip=null; tipPct=parseFloat(b.dataset.pct); }
-        renderTips(); renderCart();
-      }));
+      $('grand').textContent=money(subtotal());
     }
     window._chg=chg;
 
@@ -232,16 +216,52 @@
       try{
         if(!cart.length){ toast('Cart is empty'); return; }
         const id=await ensureOrder();
+        if(method==='cash') return cashModal(id);           // cash tip on its own screen
         const sub=subtotal();
         const amount = splitWays>1 ? Math.ceil(sub/splitWays) : undefined; // even split share
-        // Cash tip is set by the bartender in the cart; card & QR let the CUSTOMER pick a tip.
-        const body={ method, tip: (method==='cash'?tipCents():0), ...(amount?{amount}:{}) };
+        const body={ method, tip:0, ...(amount?{amount}:{}) }; // card & QR: customer picks the tip
         const r=await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify(body)});
         const j=await r.json(); if(!r.ok)throw new Error(j.error||'charge failed');
-        if(method==='cash') return doneModal('Cash payment recorded');
         if(method==='qr') return qrModal(j);
         if(method==='manual') return manualModal(j);
       }catch(e){ if(e.message!=='empty') toast(e.message); }
+    }
+
+    // Cash: optional tip screen, then record the payment.
+    function cashModal(id){
+      const base = splitWays>1 ? Math.ceil(subtotal()/splitWays) : subtotal();
+      let tipC=0;
+      modal(`<div class="modal" style="text-align:left;">
+        <h2 style="text-align:center;">Cash Payment</h2>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Subtotal</span><strong>${money(base)}</strong></div>
+        <p style="margin:10px 0 4px;font-weight:600;">Add a tip? (optional)</p>
+        <div class="tips" id="cTips"></div>
+        <input type="number" id="cCustom" placeholder="Custom tip ($)" min="0" step="0.50" style="display:none;width:100%;padding:9px;margin-top:8px;border:1px solid #ccc;border-radius:8px;">
+        <div style="display:flex;justify-content:space-between;padding:4px 0;margin-top:6px;"><span>Tip</span><strong id="cTip">$0.00</strong></div>
+        <div style="display:flex;justify-content:space-between;border-top:2px solid var(--navy);padding-top:8px;margin-top:4px;font-size:1.35rem;color:var(--navy);"><strong>Total</strong><strong id="cTotal">${money(base)}</strong></div>
+        <button class="btn primary" id="cpay" style="background:#2e7d32;">Record ${money(base)} Cash</button>
+        <button class="btn ghost" onclick="window._close()">Cancel</button>
+        <div class="err" id="cerr"></div>
+      </div>`);
+      const opts=[['No tip',0],['15%',.15],['18%',.18],['20%',.20],['$',null]];
+      $('cTips').innerHTML=opts.map(o=>`<button type="button" data-pct="${o[1]}" class="${o[1]===0?'sel':''}">${o[0]}</button>`).join('');
+      const setTip=c=>{ tipC=c; $('cTip').textContent=money(c); $('cTotal').textContent=money(base+c); $('cpay').textContent='Record '+money(base+c)+' Cash'; };
+      $('cTips').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+        $('cTips').querySelectorAll('button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+        if(b.dataset.pct==='null'){ $('cCustom').style.display='block'; $('cCustom').focus(); }
+        else { $('cCustom').style.display='none'; setTip(Math.round(base*parseFloat(b.dataset.pct))); }
+      }));
+      $('cCustom').addEventListener('input',()=>setTip(Math.max(0,Math.round((parseFloat($('cCustom').value)||0)*100))));
+      $('cpay').addEventListener('click',async()=>{
+        $('cpay').disabled=true;
+        try{
+          const amount = splitWays>1 ? base : undefined;
+          const r=await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify({method:'cash',tip:tipC,...(amount?{amount}:{})})});
+          const j=await r.json(); if(!r.ok)throw new Error(j.error||'charge failed');
+          modal(`<div class="modal"><div class="big">✅</div><h2>Cash Recorded</h2><p>${money(base+tipC)}</p><button class="btn primary" onclick="window._next()">New Order</button></div>`);
+          poll(id);
+        }catch(e){ $('cerr').textContent=e.message; $('cerr').style.display='block'; $('cpay').disabled=false; }
+      });
     }
 
     function closeModal(){ $('modalRoot').innerHTML=''; }
