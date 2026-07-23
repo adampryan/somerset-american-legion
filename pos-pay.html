@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Pay — Somerset American Legion Post 228</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        :root { --navy:#002868; --red:#b22234; }
+        * { box-sizing: border-box; }
+        body { font-family:'Source Sans 3',sans-serif; margin:0; background:#f4f4f2; color:#1a1a1a; }
+        .wrap { max-width:460px; margin:0 auto; padding:16px; }
+        .card { background:#fff; border-radius:12px; box-shadow:0 2px 14px rgba(0,0,0,.08); padding:20px; margin-top:16px; }
+        .brand { text-align:center; padding:12px 0; }
+        .brand h1 { font-family:'Cinzel',serif; color:var(--navy); font-size:1.25rem; margin:.2rem 0; }
+        .brand p { color:#666; margin:0; font-size:.85rem; }
+        .line { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee; }
+        .total { display:flex; justify-content:space-between; font-size:1.5rem; color:var(--navy); font-weight:700; margin-top:10px; }
+        .tips { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:14px 0; }
+        .tipbtn { padding:12px 4px; border:2px solid var(--navy); background:#fff; color:var(--navy); border-radius:8px; font-weight:700; cursor:pointer; font-size:.95rem; }
+        .tipbtn.sel { background:var(--navy); color:#fff; }
+        .tipbtn small { display:block; font-weight:400; font-size:.7rem; opacity:.8; }
+        #custom-tip { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; margin-bottom:10px; display:none; }
+        .paybtn { width:100%; padding:16px; background:var(--red); color:#fff; border:none; border-radius:8px; font-size:1.1rem; font-weight:700; cursor:pointer; margin-top:12px; }
+        .paybtn:disabled { opacity:.6; }
+        .muted { color:#666; font-size:.8rem; text-align:center; margin-top:12px; }
+        .center { text-align:center; padding:30px 0; }
+        .big { font-size:3rem; }
+        .err { color:#721c24; background:#f8d7da; padding:10px; border-radius:8px; margin-top:10px; display:none; }
+        #payment-element { margin-top:14px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="brand">
+            <h1>Somerset American Legion</h1>
+            <p>Post 228 &middot; Bar</p>
+        </div>
+
+        <div id="loading" class="card center">Loading…</div>
+
+        <div id="invalid" class="card center" style="display:none;">
+            <div class="big">⚠️</div>
+            <h3>Payment not found</h3>
+            <p class="muted">This code may be expired. Please ask the bartender for a new one.</p>
+        </div>
+
+        <div id="done" class="card center" style="display:none;">
+            <div class="big">✅</div>
+            <h3>Paid — thank you!</h3>
+            <p class="muted">You're all set. Enjoy!</p>
+        </div>
+
+        <div id="pay" class="card" style="display:none;">
+            <div id="items"></div>
+            <div class="line"><span>Subtotal</span><span id="amount"></span></div>
+            <div class="line" id="tip-line" style="display:none;"><span>Tip</span><span id="tipval">$0.00</span></div>
+            <div class="total"><span>Total</span><span id="total">$0.00</span></div>
+
+            <p style="margin:16px 0 6px;font-weight:600;">Add a tip?</p>
+            <div class="tips" id="tips"></div>
+            <input type="number" id="custom-tip" placeholder="Custom tip ($)" min="0" step="0.50">
+
+            <form id="pf">
+                <div id="payment-element"></div>
+                <button class="paybtn" id="paybtn" type="submit">Pay</button>
+                <div class="err" id="err"></div>
+            </form>
+            <p class="muted">🔒 Secured by Stripe</p>
+        </div>
+    </div>
+
+    <script>
+    (function(){
+        const API='https://api.somersetamericanlegion.org';
+        const PK='pk_test_51TwB389ny6NMeRIFnulKC2aMWEq9MCJESmNvodq91aR6gKq6s75DGhYywWXyjWuJbH6z5W0JuC8irY2cZrLpeUFh00Z9fFalQM';
+        const token=new URLSearchParams(location.search).get('token');
+        const $=id=>document.getElementById(id);
+        const show=id=>{['loading','invalid','done','pay'].forEach(x=>$(x).style.display='none');$(id).style.display=(id==='pay'?'block':'block');};
+        const money=c=>'$'+(c/100).toFixed(2);
+        let stripe=window.Stripe?Stripe(PK):null, elements=null, amount=0, tipCents=0, mounted=false;
+
+        async function load(){
+            if(!token){show('invalid');return;}
+            let d; try{ const r=await fetch(`${API}/api/pos/pay/${encodeURIComponent(token)}`); d=await r.json(); if(!r.ok)throw 0; }catch(e){show('invalid');return;}
+            if(d.paid){show('done');return;}
+            amount=d.amount;
+            $('items').innerHTML=(d.items||[]).map(i=>`<div class="line"><span>${i.qty}× ${i.name}</span><span>${money(i.line_total)}</span></div>`).join('');
+            $('amount').textContent=money(amount);
+            renderTips();
+            selectTip(0);
+            show('pay');
+        }
+        function renderTips(){
+            const pcts=[0,0.15,0.18,0.20];
+            $('tips').innerHTML=pcts.map((p,i)=>`<div class="tipbtn${i===0?' sel':''}" data-pct="${p}">${p===0?'No tip':Math.round(p*100)+'%'}${p>0?`<small>${money(Math.round(amount*p))}</small>`:''}</div>`).join('')+`<div class="tipbtn" data-custom="1" style="grid-column:span 4;">Custom tip</div>`;
+            $('tips').querySelectorAll('.tipbtn').forEach(b=>b.addEventListener('click',()=>{
+                $('tips').querySelectorAll('.tipbtn').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+                if(b.dataset.custom){ $('custom-tip').style.display='block'; $('custom-tip').focus(); tipFromCustom(); }
+                else { $('custom-tip').style.display='none'; selectTip(Math.round(amount*parseFloat(b.dataset.pct))); }
+            }));
+        }
+        $('custom-tip').addEventListener('input',tipFromCustom);
+        function tipFromCustom(){ selectTip(Math.max(0,Math.round((parseFloat($('custom-tip').value)||0)*100))); }
+        function selectTip(c){ tipCents=c; $('tipval').textContent=money(c); $('tip-line').style.display=c>0?'flex':'none'; $('total').textContent=money(amount+c); }
+
+        // (Re)create the PaymentIntent for the chosen tip just before mounting/paying.
+        async function ensureIntent(){
+            const r=await fetch(`${API}/api/pos/pay/${encodeURIComponent(token)}/intent`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tip:tipCents})});
+            const j=await r.json();
+            if(!r.ok||!j.clientSecret) throw new Error(j.error||'Payment error');
+            if(!elements){
+                elements=stripe.elements({clientSecret:j.clientSecret, fonts:[{cssSrc:'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap'}], appearance:{theme:'stripe',variables:{colorPrimary:'#002868',fontFamily:'"Source Sans 3",sans-serif',borderRadius:'8px'}}});
+                elements.create('payment').mount('#payment-element'); mounted=true;
+            } else { await elements.fetchUpdates(); }
+            $('paybtn').textContent='Pay '+money(amount+tipCents);
+        }
+
+        // Mount once the customer touches the card area (keeps the tip editable first).
+        let intentReady=false;
+        async function prepare(){ if(intentReady||!stripe)return; intentReady=true; try{ await ensureIntent(); }catch(e){ intentReady=false; } }
+        $('pf').addEventListener('mouseover',prepare,{once:true});
+        $('pf').addEventListener('touchstart',prepare,{once:true});
+        setTimeout(prepare,600);
+
+        $('pf').addEventListener('submit',async e=>{
+            e.preventDefault(); $('err').style.display='none';
+            $('paybtn').disabled=true; const t=$('paybtn').textContent; $('paybtn').textContent='Processing…';
+            try{
+                await ensureIntent(); // sync latest tip into the PI amount
+                const {error,paymentIntent}=await stripe.confirmPayment({elements,confirmParams:{return_url:location.href},redirect:'if_required'});
+                if(error){ $('err').textContent=error.message||'Card declined. Try again.'; $('err').style.display='block'; $('paybtn').disabled=false; $('paybtn').textContent=t; return; }
+                if(paymentIntent&&paymentIntent.status==='succeeded'){ show('done'); }
+                else { $('err').textContent='Payment processing…'; $('err').style.display='block'; }
+            }catch(err){ $('err').textContent=err.message||'Something went wrong.'; $('err').style.display='block'; $('paybtn').disabled=false; $('paybtn').textContent=t; }
+        });
+
+        load();
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex">
+    <title>Post 228 Bar POS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+      :root { --navy:#002868; --red:#b22234; --gold:#c8a54b; }
+      * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+      html,body { margin:0; height:100%; font-family:'Source Sans 3',sans-serif; background:#ececea; color:#1a1a1a; overscroll-behavior:none; }
+      button { font-family:inherit; cursor:pointer; }
+      .hidden { display:none !important; }
+
+      /* Lock screen */
+      #lock { position:fixed; inset:0; background:var(--navy); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:50; }
+      #lock h1 { font-family:'Cinzel',serif; }
+      #pin { font-size:2rem; letter-spacing:.4rem; text-align:center; width:220px; padding:12px; border-radius:10px; border:none; margin:14px 0; }
+      .keypad { display:grid; grid-template-columns:repeat(3,84px); gap:12px; }
+      .keypad button { height:74px; font-size:1.6rem; border-radius:12px; border:none; background:rgba(255,255,255,.15); color:#fff; }
+      .keypad button:active { background:rgba(255,255,255,.35); }
+
+      /* Layout */
+      header { background:var(--navy); color:#fff; display:flex; align-items:center; gap:12px; padding:8px 14px; }
+      header .title { font-family:'Cinzel',serif; font-weight:700; }
+      header input { padding:7px 10px; border-radius:8px; border:none; }
+      header .spacer { flex:1; }
+      header button { background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 12px; border-radius:8px; }
+      .main { display:flex; height:calc(100vh - 52px); }
+      .menu { flex:1; overflow:auto; padding:10px; }
+      .cats { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+      .cat { padding:8px 14px; border-radius:20px; border:2px solid var(--navy); background:#fff; color:var(--navy); font-weight:600; }
+      .cat.sel { background:var(--navy); color:#fff; }
+      .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; }
+      .prod { background:#fff; border:none; border-radius:12px; padding:14px 8px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,.08); min-height:80px; }
+      .prod .n { font-weight:600; display:block; }
+      .prod .p { color:var(--navy); font-weight:700; margin-top:4px; }
+      .prod .stock { font-size:.7rem; color:#a00; }
+
+      /* Cart */
+      .cart { width:340px; background:#fff; border-left:1px solid #ddd; display:flex; flex-direction:column; }
+      .cart .head { padding:10px 14px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; }
+      .cart .items { flex:1; overflow:auto; padding:6px 10px; }
+      .ci { display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+      .ci .n { flex:1; }
+      .ci .q { display:flex; align-items:center; gap:8px; }
+      .ci .q button { width:30px; height:30px; border-radius:8px; border:1px solid #ccc; background:#f7f7f7; font-size:1.1rem; }
+      .totals { padding:10px 14px; border-top:1px solid #eee; }
+      .totals .row { display:flex; justify-content:space-between; padding:3px 0; }
+      .totals .grand { font-size:1.4rem; font-weight:700; color:var(--navy); }
+      .tips { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin:8px 0; }
+      .tips button { padding:8px 2px; border:2px solid var(--navy); background:#fff; color:var(--navy); border-radius:8px; font-weight:700; font-size:.8rem; }
+      .tips button.sel { background:var(--navy); color:#fff; }
+      .pay { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:0 14px 8px; }
+      .pay button { padding:16px 4px; border:none; border-radius:10px; color:#fff; font-weight:700; font-size:1rem; }
+      .pay .cash{background:#2e7d32;} .pay .card{background:var(--navy);} .pay .qr{background:var(--red);}
+      .sub { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 14px 12px; }
+      .sub button { padding:10px; border-radius:8px; border:1px solid var(--navy); background:#fff; color:var(--navy); font-weight:600; }
+
+      /* Modal */
+      .overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:40; padding:16px; }
+      .modal { background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; max-height:90vh; overflow:auto; text-align:center; }
+      .modal h2 { color:var(--navy); margin-top:0; }
+      .modal .big { font-size:3rem; }
+      #qrbox { display:flex; justify-content:center; margin:14px 0; }
+      .btn { padding:14px; border-radius:10px; border:none; font-weight:700; font-size:1rem; width:100%; margin-top:10px; }
+      .btn.primary { background:var(--red); color:#fff; }
+      .btn.ghost { background:#eee; color:#333; }
+      .err { color:#721c24; background:#f8d7da; padding:10px; border-radius:8px; margin-top:10px; display:none; }
+      .tablist .tab { display:flex; justify-content:space-between; padding:12px; border:1px solid #ddd; border-radius:10px; margin-bottom:8px; }
+      .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#2e7d32; color:#fff; padding:12px 20px; border-radius:10px; z-index:60; }
+    </style>
+</head>
+<body>
+
+  <!-- LOCK -->
+  <div id="lock">
+    <h1>Post 228 Bar</h1>
+    <p>Enter passcode</p>
+    <input id="pin" type="password" inputmode="numeric" readonly>
+    <div class="keypad" id="keypad"></div>
+    <div id="lockerr" style="color:#ffb3b3;height:20px;margin-top:10px;"></div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden">
+    <header>
+      <span class="title">🍺 Post 228 Bar</span>
+      <input id="server" placeholder="Bartender name" style="width:130px;">
+      <span class="spacer"></span>
+      <button onclick="openTabs()">Tabs (<span id="tabcount">0</span>)</button>
+      <button onclick="lock()">Lock</button>
+    </header>
+    <div class="main">
+      <div class="menu">
+        <div class="cats" id="cats"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div class="cart">
+        <div class="head"><strong id="cartTitle">New Order</strong><span class="spacer" style="flex:1"></span><button onclick="clearCart()" style="border:none;background:none;color:#a00;">Clear</button></div>
+        <div class="items" id="cartItems"><p style="color:#999;text-align:center;margin-top:30px;">Tap items to add</p></div>
+        <div class="totals">
+          <div class="row"><span>Subtotal</span><strong id="subtotal">$0.00</strong></div>
+          <div class="row" id="tipRow" style="display:none;"><span>Tip</span><strong id="tipAmt">$0.00</strong></div>
+          <div class="row grand"><span>Total</span><span id="grand">$0.00</span></div>
+          <div style="font-size:.8rem;color:#666;margin-top:6px;">Tip (card/cash — QR asks the customer):</div>
+          <div class="tips" id="tips"></div>
+        </div>
+        <div class="pay">
+          <button class="cash" onclick="charge('cash')">💵 Cash</button>
+          <button class="card" onclick="charge('manual')">💳 Card</button>
+          <button class="qr" onclick="charge('qr')">📱 QR</button>
+        </div>
+        <div class="sub">
+          <button onclick="saveTab()">💾 Save Tab</button>
+          <button onclick="splitPrompt()">➗ Split</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+  (function(){
+    const API='https://api.somersetamericanlegion.org';
+    const PK='pk_test_51TwB389ny6NMeRIFnulKC2aMWEq9MCJESmNvodq91aR6gKq6s75DGhYywWXyjWuJbH6z5W0JuC8irY2cZrLpeUFh00Z9fFalQM';
+    let TOKEN=localStorage.getItem('pos_token')||'';
+    let products=[], cart=[], curCat='all', tipPct=0, customTip=null, orderId=null, splitWays=1;
+    const stripe=window.Stripe?Stripe(PK):null;
+    const $=id=>document.getElementById(id);
+    const money=c=>'$'+(c/100).toFixed(2);
+    const auth=()=>({'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'});
+    function toast(m){const t=$('toast');t.textContent=m;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2200);}
+
+    // ---------- lock / auth ----------
+    function buildKeypad(){
+      const k=$('keypad'); const keys=['1','2','3','4','5','6','7','8','9','⌫','0','OK'];
+      k.innerHTML=keys.map(x=>`<button data-k="${x}">${x}</button>`).join('');
+      k.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+        const v=b.dataset.k;
+        if(v==='⌫') $('pin').value=$('pin').value.slice(0,-1);
+        else if(v==='OK') unlock();
+        else $('pin').value+=v;
+      }));
+    }
+    async function unlock(){
+      const passcode=$('pin').value;
+      try{
+        const r=await fetch(`${API}/api/pos/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({passcode})});
+        const j=await r.json();
+        if(!r.ok) throw new Error(j.error||'Wrong passcode');
+        TOKEN=j.token; localStorage.setItem('pos_token',TOKEN);
+        startApp();
+      }catch(e){ $('lockerr').textContent=e.message; $('pin').value=''; }
+    }
+    function lock(){ localStorage.removeItem('pos_token'); TOKEN=''; location.reload(); }
+
+    async function startApp(){
+      $('lock').classList.add('hidden'); $('app').classList.remove('hidden');
+      const sv=localStorage.getItem('pos_server'); if(sv)$('server').value=sv;
+      $('server').addEventListener('change',()=>localStorage.setItem('pos_server',$('server').value));
+      await loadMenu(); renderTips(); refreshTabs();
+    }
+
+    // ---------- menu ----------
+    async function loadMenu(){
+      const r=await fetch(`${API}/api/pos/products`,{headers:auth()});
+      if(r.status===401){ lock(); return; }
+      products=await r.json();
+      const cats=['all',...[...new Set(products.map(p=>p.category))]];
+      $('cats').innerHTML=cats.map(c=>`<button class="cat${c===curCat?' sel':''}" data-c="${c}">${c==='all'?'All':c[0].toUpperCase()+c.slice(1)}</button>`).join('');
+      $('cats').querySelectorAll('.cat').forEach(b=>b.addEventListener('click',()=>{curCat=b.dataset.c;renderMenu();$('cats').querySelectorAll('.cat').forEach(x=>x.classList.toggle('sel',x.dataset.c===curCat));}));
+      renderMenu();
+    }
+    function renderMenu(){
+      const list=products.filter(p=>curCat==='all'||p.category===curCat);
+      $('grid').innerHTML=list.map(p=>`<button class="prod" data-id="${p.id}"><span class="n">${p.name}</span><span class="p">${money(p.price)}</span>${p.track_inventory?`<span class="stock">${p.stock_qty} left</span>`:''}</button>`).join('');
+      $('grid').querySelectorAll('.prod').forEach(b=>b.addEventListener('click',()=>addToCart(+b.dataset.id)));
+    }
+
+    // ---------- cart ----------
+    function addToCart(id){
+      const p=products.find(x=>x.id===id); if(!p)return;
+      const ex=cart.find(x=>x.product_id===id);
+      if(ex)ex.qty++; else cart.push({product_id:id,name:p.name,price:p.price,qty:1});
+      renderCart();
+    }
+    function chg(id,d){ const it=cart.find(x=>x.product_id===id); if(!it)return; it.qty+=d; if(it.qty<=0)cart=cart.filter(x=>x!==it); renderCart(); }
+    function clearCart(){ cart=[]; orderId=null; splitWays=1; $('cartTitle').textContent='New Order'; customTip=null; tipPct=0; renderTips(); renderCart(); }
+    function subtotal(){ return cart.reduce((s,i)=>s+i.price*i.qty,0); }
+    function tipCents(){ return customTip!=null?customTip:Math.round(subtotal()*tipPct); }
+    function renderCart(){
+      if(!cart.length){ $('cartItems').innerHTML='<p style="color:#999;text-align:center;margin-top:30px;">Tap items to add</p>'; }
+      else $('cartItems').innerHTML=cart.map(i=>`<div class="ci"><span class="n">${i.name}</span><span class="q"><button onclick="window._chg(${i.product_id},-1)">−</button>${i.qty}<button onclick="window._chg(${i.product_id},1)">+</button></span><span>${money(i.price*i.qty)}</span></div>`).join('');
+      const sub=subtotal(), tip=tipCents();
+      $('subtotal').textContent=money(sub);
+      $('tipAmt').textContent=money(tip); $('tipRow').style.display=tip>0?'flex':'none';
+      $('grand').textContent=money(sub+tip);
+    }
+    function renderTips(){
+      const opts=[['No',0],['15%',.15],['18%',.18],['20%',.20],['$',null]];
+      $('tips').innerHTML=opts.map((o,i)=>`<button data-pct="${o[1]}" class="${(customTip==null&&tipPct===o[1])?'sel':''}">${o[0]}</button>`).join('');
+      $('tips').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+        if(b.dataset.pct==='null'){ const v=prompt('Tip amount ($):'); customTip=Math.max(0,Math.round((parseFloat(v)||0)*100)); }
+        else { customTip=null; tipPct=parseFloat(b.dataset.pct); }
+        renderTips(); renderCart();
+      }));
+    }
+    window._chg=chg;
+
+    // ---------- ensure an order exists on the server ----------
+    async function ensureOrder(){
+      if(orderId) return orderId;
+      if(!cart.length){ toast('Cart is empty'); throw new Error('empty'); }
+      const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items:cart.map(i=>({product_id:i.product_id,qty:i.qty})),server_name:$('server').value})});
+      const j=await r.json(); if(!r.ok)throw new Error(j.error||'order failed');
+      orderId=j.id; return orderId;
+    }
+
+    // ---------- charge ----------
+    async function charge(method){
+      try{
+        if(!cart.length){ toast('Cart is empty'); return; }
+        const id=await ensureOrder();
+        const sub=subtotal();
+        const amount = splitWays>1 ? Math.ceil(sub/splitWays) : undefined; // even split share
+        const body={ method, tip: (method==='qr'?0:tipCents()), ...(amount?{amount}:{}) };
+        const r=await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify(body)});
+        const j=await r.json(); if(!r.ok)throw new Error(j.error||'charge failed');
+        if(method==='cash') return doneModal('Cash payment recorded');
+        if(method==='qr') return qrModal(j);
+        if(method==='manual') return manualModal(j);
+      }catch(e){ if(e.message!=='empty') toast(e.message); }
+    }
+
+    function closeModal(){ $('modalRoot').innerHTML=''; }
+    function modal(html){ $('modalRoot').innerHTML=`<div class="overlay">${html}</div>`; }
+
+    function doneModal(msg){
+      const done=orderPaidCheck();
+      modal(`<div class="modal"><div class="big">✅</div><h2>${msg}</h2><button class="btn primary" onclick="window._next()">New Order</button></div>`);
+      poll(orderId);
+    }
+    function orderPaidCheck(){}
+    window._next=()=>{ closeModal(); clearCart(); loadMenu(); refreshTabs(); };
+
+    // QR
+    function qrModal(j){
+      modal(`<div class="modal"><h2>Scan to Pay</h2><p>Customer scans, adds a tip, and pays on their phone.</p><div id="qrbox"></div><p style="word-break:break-all;font-size:.75rem;color:#888;">${j.pay_url}</p><div id="qrstatus">Waiting for payment…</div><button class="btn ghost" onclick="window._next()">Done / New Order</button></div>`);
+      new QRCode($('qrbox'),{text:j.pay_url,width:230,height:230,colorDark:'#002868'});
+      poll(orderId, ()=>{ $('qrstatus').innerHTML='<strong style="color:#2e7d32;">✅ Paid!</strong>'; });
+    }
+
+    // Manual card entry (bartender keys the card)
+    let mEl=null;
+    function manualModal(j){
+      modal(`<div class="modal"><h2>Enter Card — ${money(j.total)}</h2><div id="pe"></div><button class="btn primary" id="mpay">Charge ${money(j.total)}</button><button class="btn ghost" onclick="window._next()">Cancel</button><div class="err" id="merr"></div></div>`);
+      const elements=stripe.elements({clientSecret:j.clientSecret, appearance:{theme:'stripe',variables:{colorPrimary:'#002868'}}});
+      mEl=elements; elements.create('payment').mount('#pe');
+      $('mpay').addEventListener('click',async()=>{
+        $('mpay').disabled=true; $('mpay').textContent='Processing…';
+        const {error,paymentIntent}=await stripe.confirmPayment({elements,confirmParams:{return_url:location.href},redirect:'if_required'});
+        if(error){ $('merr').textContent=error.message; $('merr').style.display='block'; $('mpay').disabled=false; $('mpay').textContent='Charge '+money(j.total); return; }
+        if(paymentIntent&&paymentIntent.status==='succeeded'){ modal(`<div class="modal"><div class="big">✅</div><h2>Approved</h2><button class="btn primary" onclick="window._next()">New Order</button></div>`); poll(orderId); }
+      });
+    }
+
+    // poll order until paid
+    async function poll(id, onPaid){
+      for(let i=0;i<90;i++){
+        await new Promise(r=>setTimeout(r,2000));
+        try{ const r=await fetch(`${API}/api/pos/orders/${id}`,{headers:auth()}); const o=await r.json();
+          if(o.status==='paid'){ if(onPaid)onPaid(); refreshTabs(); return; } }catch(e){}
+        if(!$('modalRoot').innerHTML) return;
+      }
+    }
+
+    // ---------- tabs ----------
+    async function saveTab(){
+      if(!cart.length){ toast('Cart is empty'); return; }
+      const label=prompt('Tab name (customer):'); if(label===null)return;
+      const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items:cart.map(i=>({product_id:i.product_id,qty:i.qty})),label,server_name:$('server').value})});
+      if(r.ok){ toast('Tab saved'); clearCart(); refreshTabs(); }
+    }
+    async function refreshTabs(){
+      try{ const r=await fetch(`${API}/api/pos/orders?status=open`,{headers:auth()}); const t=await r.json(); window._tabs=t; $('tabcount').textContent=t.length; }catch(e){}
+    }
+    async function openTabs(){
+      const t=window._tabs||[];
+      modal(`<div class="modal"><h2>Open Tabs</h2><div class="tablist">${t.length?t.map(o=>`<div class="tab"><span>${o.label||'Tab #'+o.id}</span><span>${money(o.subtotal)} <button class="btn primary" style="width:auto;padding:6px 12px;margin:0 0 0 8px;" onclick="window._openTab(${o.id})">Open</button></span></div>`).join(''):'<p>No open tabs.</p>'}</div><button class="btn ghost" onclick="window._close()">Close</button></div>`);
+    }
+    window._openTab=async(id)=>{
+      const r=await fetch(`${API}/api/pos/orders/${id}`,{headers:auth()}); const o=await r.json();
+      orderId=id; cart=o.items.map(i=>({product_id:i.product_id,name:i.name,price:i.unit_price,qty:i.qty}));
+      $('cartTitle').textContent=(o.label||'Tab #'+id);
+      closeModal(); renderCart();
+    };
+    window._close=closeModal;
+
+    // ---------- split ----------
+    function splitPrompt(){
+      const n=parseInt(prompt('Split evenly into how many payments?','2')||'1',10);
+      splitWays=(n>=1&&n<=10)?n:1;
+      toast(splitWays>1?`Split ${splitWays} ways — each Charge takes one ${money(Math.ceil(subtotal()/splitWays))} share`:'Split off');
+    }
+
+    window.charge=charge; window.openTabs=openTabs; window.saveTab=saveTab; window.splitPrompt=splitPrompt; window.clearCart=clearCart; window.lock=lock;
+
+    // ---------- boot ----------
+    buildKeypad();
+    if(TOKEN){ // verify token still works
+      fetch(`${API}/api/pos/products`,{headers:auth()}).then(r=>{ if(r.ok) startApp(); else lock(); }).catch(()=>{});
+    }
+  })();
+  </script>
+</body>
+</html>
