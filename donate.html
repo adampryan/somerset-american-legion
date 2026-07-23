@@ -181,9 +181,12 @@
                 }
 
                 // Build the embedded Payment Element, themed to match the site.
+                // `fonts` loads Source Sans 3 INTO the Stripe iframe so the card fields
+                // render in the site font (the appearance variable alone can't reach the iframe).
                 elements = stripe.elements({
                     clientSecret: data.clientSecret,
-                    appearance: { theme: 'stripe', variables: { colorPrimary: '#002868', fontFamily: 'Source Sans 3, sans-serif', borderRadius: '4px' } },
+                    fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap' }],
+                    appearance: { theme: 'stripe', variables: { colorPrimary: '#002868', fontFamily: '"Source Sans 3", sans-serif', borderRadius: '4px' } },
                 });
                 paymentElement = elements.create('payment');
                 paymentElement.mount('#payment-element');
