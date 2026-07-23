@@ -92,7 +92,7 @@
       <input id="server" placeholder="Bartender name" style="width:130px;">
       <span class="spacer"></span>
       <button onclick="openTabs()">Tabs (<span id="tabcount">0</span>)</button>
-      <button onclick="lock()">Lock</button>
+      <button id="lockBtn" onclick="lock()">Lock</button>
     </header>
     <div class="main">
       <div class="menu">
@@ -130,6 +130,10 @@
     const API='https://api.somersetamericanlegion.org';
     const PK='pk_test_51TwB389ny6NMeRIFnulKC2aMWEq9MCJESmNvodq91aR6gKq6s75DGhYywWXyjWuJbH6z5W0JuC8irY2cZrLpeUFh00Z9fFalQM';
     let TOKEN=localStorage.getItem('pos_token')||'';
+    // When embedded inside the admin panel (same origin), reuse the manager's login
+    // so no separate passcode is needed.
+    let EMBEDDED=false;
+    if(!TOKEN){ const adm=localStorage.getItem('legion_token'); if(adm){ TOKEN=adm; EMBEDDED=true; } }
     let products=[], cart=[], curCat='all', tipPct=0, customTip=null, orderId=null, splitWays=1;
     const stripe=window.Stripe?Stripe(PK):null;
     const $=id=>document.getElementById(id);
@@ -162,6 +166,7 @@
 
     async function startApp(){
       $('lock').classList.add('hidden'); $('app').classList.remove('hidden');
+      if(EMBEDDED) $('lockBtn').style.display='none'; // inside admin — no lock button
       const sv=localStorage.getItem('pos_server'); if(sv)$('server').value=sv;
       $('server').addEventListener('change',()=>localStorage.setItem('pos_server',$('server').value));
       await loadMenu(); renderTips(); refreshTabs();

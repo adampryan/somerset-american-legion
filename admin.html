@@ -567,8 +567,11 @@
             <button class="tab" data-panel="events">
                 <i class="fas fa-bullhorn"></i> Events
             </button>
+            <button class="tab" data-panel="pos">
+                <i class="fas fa-cash-register"></i> POS
+            </button>
             <button class="tab" data-panel="bar">
-                <i class="fas fa-beer-mug-empty"></i> Bar / POS
+                <i class="fas fa-beer-mug-empty"></i> Bar Sales
             </button>
             <button class="tab" data-panel="subscribers">
                 <i class="fas fa-envelope"></i> Subscribers
@@ -704,7 +707,12 @@
                 </div>
             </div>
             
-            <!-- Bar / POS Panel -->
+            <!-- POS Register Panel (embeds the bartender POS, uses this login) -->
+            <div class="panel" id="posPanel" style="padding:0;">
+                <iframe id="posFrame" title="Bar POS Register" style="width:100%;height:calc(100vh - 130px);min-height:560px;border:none;display:block;"></iframe>
+            </div>
+
+            <!-- Bar Sales Panel -->
             <div class="panel" id="barPanel">
                 <div class="panel-header">
                     <h2>Bar / POS</h2>
@@ -888,11 +896,12 @@
     <div class="modal-overlay" id="userModal">
         <div class="modal">
             <div class="modal-header">
-                <h3>Add Officer</h3>
+                <h3 id="userModalTitle">Add User</h3>
                 <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="userForm">
+                <form id="userForm" onsubmit="return false;">
+                    <input type="hidden" id="userId">
                     <div class="form-group">
                         <label for="newUserName">Name</label>
                         <input type="text" id="newUserName" required>
@@ -902,21 +911,26 @@
                         <input type="email" id="newUserEmail" required>
                     </div>
                     <div class="form-group">
-                        <label for="newUserPassword">Password</label>
-                        <input type="password" id="newUserPassword" required>
+                        <label for="newUserPassword" id="userPwLabel">Password</label>
+                        <input type="password" id="newUserPassword" autocomplete="new-password">
                     </div>
                     <div class="form-group">
                         <label for="newUserRole">Role</label>
-                        <select id="newUserRole">
-                            <option value="officer">Officer</option>
-                            <option value="webmaster">Webmaster</option>
+                        <select id="newUserRole" onchange="togglePermUI()">
+                            <option value="officer">Officer / Staff (choose pages below)</option>
+                            <option value="webmaster">Webmaster (full access)</option>
                         </select>
+                    </div>
+                    <div class="form-group" id="permGroup">
+                        <label>Page access</label>
+                        <div id="permChecks" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;"></div>
+                        <small style="color:#666;display:block;margin-top:6px;">A bartender typically needs <strong>POS</strong>, <strong>Bartenders</strong>, and <strong>Bar Shifts</strong>.</small>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button class="btn" onclick="closeModal('userModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="saveUser()">Add Officer</button>
+                <button class="btn btn-primary" onclick="saveUser()" id="userSaveBtn">Add User</button>
             </div>
         </div>
     </div>
@@ -1202,9 +1216,35 @@
                     loadFinanceReport();
                 } else if (tab.dataset.panel === 'bar') {
                     loadBar();
+                } else if (tab.dataset.panel === 'pos') {
+                    const f = document.getElementById('posFrame');
+                    if (!f.getAttribute('src')) f.src = 'pos.html';
                 }
             });
         });
+
+        // Which admin sections this user may see (webmaster = everything).
+        function can(section) {
+            if (!currentUser) return false;
+            if (currentUser.role === 'webmaster') return true;
+            if (Array.isArray(currentUser.permissions)) return currentUser.permissions.includes(section);
+            // Legacy login cached before permissions existed: broad default (no admin tabs).
+            return !['users', 'finance'].includes(section);
+        }
+        function applyPermissions() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.style.display = can(tab.dataset.panel) ? '' : 'none';
+            });
+            // Activate the first visible tab so a restricted user lands somewhere valid.
+            const first = [...document.querySelectorAll('.tab')].find(t => t.style.display !== 'none');
+            if (first) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                first.classList.add('active');
+                document.getElementById(first.dataset.panel + 'Panel').classList.add('active');
+                first.click();
+            }
+        }
 
         // ============ BAR / POS MANAGEMENT ============
         let posMenuData = [];
@@ -1348,20 +1388,19 @@
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
             document.getElementById('userName').textContent = currentUser.name;
-            
-            // Show webmaster-only tabs
-            if (currentUser.role === 'webmaster') {
-                document.getElementById('usersTab').style.display = 'block';
-                document.getElementById('financeTab').style.display = 'block';
-            }
-            
-            loadRentals();
-            loadEvents();
-            loadBartenders();
-            loadShifts();
-            if (currentUser.role === 'webmaster') {
-                loadUsers();
-            }
+
+            // Webmaster-only tabs are handled by applyPermissions() below; clear the
+            // default inline "display:none" so permission logic controls visibility.
+            document.getElementById('usersTab').style.display = '';
+            document.getElementById('financeTab').style.display = '';
+            applyPermissions();
+
+            // Load data only for sections this user can access.
+            if (can('rentals')) loadRentals();
+            if (can('events')) loadEvents();
+            if (can('bartenders')) loadBartenders();
+            if (can('shifts')) loadShifts();
+            if (can('users')) loadUsers();
         }
 
         // Finance Officer Report (webmaster only). Fetched from the Worker with the
@@ -1578,31 +1617,51 @@
             `).join('');
         }
 
+        const PERM_LABELS = {
+            rentals: 'Rentals', shifts: 'Bar Shifts', bartenders: 'Bartenders', events: 'Events',
+            pos: 'POS (Register)', bar: 'Bar Sales', subscribers: 'Subscribers', users: 'Users', finance: 'Finance'
+        };
+        let usersData = [];
+
+        function renderPermChecks(selected) {
+            const sel = new Set(selected || []);
+            document.getElementById('permChecks').innerHTML = Object.entries(PERM_LABELS).map(([k, label]) =>
+                `<label style="display:flex;align-items:center;font-weight:400;cursor:pointer;">
+                    <input type="checkbox" class="perm-check" value="${k}" ${sel.has(k) ? 'checked' : ''} style="width:auto;margin-right:8px;"> ${label}
+                </label>`).join('');
+        }
+        function togglePermUI() {
+            document.getElementById('permGroup').style.display =
+                document.getElementById('newUserRole').value === 'webmaster' ? 'none' : 'block';
+        }
+
         async function loadUsers() {
-            const users = await api('/api/admin/users');
+            usersData = await api('/api/admin/users');
             const tbody = document.querySelector('#usersTable tbody');
-            
-            tbody.innerHTML = users.map(u => `
+            tbody.innerHTML = usersData.map(u => {
+                const permSummary = u.role === 'webmaster'
+                    ? '<span class="badge badge-approved">All access</span>'
+                    : (u.permissions || []).map(p => PERM_LABELS[p] || p).join(', ') || '<span style="color:#999">None</span>';
+                return `
                 <tr>
                     <td>${u.name}</td>
-                    <td>${u.email}</td>
+                    <td>${u.email}<br><small style="color:#666">${permSummary}</small></td>
                     <td>${u.role}</td>
                     <td>
-                        <button class="btn btn-sm ${u.email_notifications ? 'btn-success' : ''}" 
+                        <button class="btn btn-sm ${u.email_notifications ? 'btn-success' : ''}"
                                 onclick="toggleNotifications(${u.id}, ${!u.email_notifications})"
                                 title="${u.email_notifications ? 'Notifications ON - Click to disable' : 'Notifications OFF - Click to enable'}">
                             <i class="fas fa-${u.email_notifications ? 'bell' : 'bell-slash'}"></i>
                         </button>
                     </td>
                     <td class="actions">
+                        <button class="btn btn-sm" onclick="editUser(${u.id})" title="Edit role & access"><i class="fas fa-user-shield"></i></button>
                         ${u.id !== currentUser.id ? `
-                            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
                         ` : '<span style="color:#666">You</span>'}
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         async function toggleNotifications(userId, enabled) {
@@ -2208,21 +2267,61 @@
 
         // User functions
         function showUserModal() {
+            document.getElementById('userModalTitle').textContent = 'Add User';
+            document.getElementById('userSaveBtn').textContent = 'Add User';
+            document.getElementById('userId').value = '';
+            document.getElementById('newUserName').value = '';
+            document.getElementById('newUserEmail').value = '';
+            document.getElementById('newUserPassword').value = '';
+            document.getElementById('newUserPassword').required = true;
+            document.getElementById('userPwLabel').textContent = 'Password';
+            document.getElementById('newUserRole').value = 'officer';
+            renderPermChecks([]);
+            togglePermUI();
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function editUser(id) {
+            const u = usersData.find(x => x.id === id);
+            if (!u) return;
+            document.getElementById('userModalTitle').textContent = 'Edit User Access';
+            document.getElementById('userSaveBtn').textContent = 'Save Changes';
+            document.getElementById('userId').value = u.id;
+            document.getElementById('newUserName').value = u.name;
+            document.getElementById('newUserEmail').value = u.email;
+            document.getElementById('newUserName').disabled = true;   // name/email fixed on edit
+            document.getElementById('newUserEmail').disabled = true;
+            document.getElementById('newUserPassword').value = '';
+            document.getElementById('newUserPassword').required = false;
+            document.getElementById('userPwLabel').textContent = 'New password (leave blank to keep)';
+            document.getElementById('newUserRole').value = u.role === 'webmaster' ? 'webmaster' : 'officer';
+            renderPermChecks(u.role === 'webmaster' ? [] : (u.permissions || []));
+            togglePermUI();
             document.getElementById('userModal').classList.add('active');
         }
 
         async function saveUser() {
-            const data = {
-                name: document.getElementById('newUserName').value,
-                email: document.getElementById('newUserEmail').value,
-                password: document.getElementById('newUserPassword').value,
-                role: document.getElementById('newUserRole').value
-            };
-            
-            await api('/api/admin/users', 'POST', data);
-            closeModal('userModal');
-            document.getElementById('userForm').reset();
-            loadUsers();
+            const id = document.getElementById('userId').value;
+            const role = document.getElementById('newUserRole').value;
+            const permissions = [...document.querySelectorAll('.perm-check:checked')].map(c => c.value);
+            const password = document.getElementById('newUserPassword').value;
+            try {
+                if (id) {
+                    const body = { role, permissions };
+                    if (password) body.password = password;
+                    await api(`/api/admin/users/${id}`, 'PUT', body);
+                } else {
+                    await api('/api/admin/users', 'POST', {
+                        name: document.getElementById('newUserName').value,
+                        email: document.getElementById('newUserEmail').value,
+                        password, role, permissions
+                    });
+                }
+                document.getElementById('newUserName').disabled = false;
+                document.getElementById('newUserEmail').disabled = false;
+                closeModal('userModal');
+                loadUsers();
+            } catch (e) { alert('Could not save user: ' + e.message); }
         }
 
         async function deleteUser(id) {
