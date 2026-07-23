@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
+    <meta name="build" content="admin-20260723-1"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -570,8 +571,11 @@
             <button class="tab" data-panel="pos">
                 <i class="fas fa-cash-register"></i> POS
             </button>
-            <button class="tab" data-panel="bar">
-                <i class="fas fa-beer-mug-empty"></i> Bar Sales
+            <button class="tab" data-panel="bar" data-perm="bar">
+                <i class="fas fa-chart-line"></i> Bar Sales
+            </button>
+            <button class="tab" data-panel="inventory" data-perm="bar">
+                <i class="fas fa-boxes-stacked"></i> Inventory
             </button>
             <button class="tab" data-panel="subscribers">
                 <i class="fas fa-envelope"></i> Subscribers
@@ -715,47 +719,55 @@
             <!-- Bar Sales Panel -->
             <div class="panel" id="barPanel">
                 <div class="panel-header">
-                    <h2>Bar / POS</h2>
-                    <button class="btn btn-primary btn-sm" onclick="showPosProductModal()">
-                        <i class="fas fa-plus"></i> Add Menu Item
-                    </button>
+                    <h2>Bar Sales</h2>
+                    <button class="btn btn-primary btn-sm" onclick="exportPosCsv()"><i class="fas fa-download"></i> Export CSV</button>
                 </div>
                 <div class="panel-body">
-                    <!-- Sales summary -->
-                    <div style="background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:16px;margin-bottom:18px;">
-                        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px;">
-                            <div><label style="font-size:.8rem;color:#666;">From</label><br><input type="date" id="posFrom" style="padding:6px;"></div>
-                            <div><label style="font-size:.8rem;color:#666;">To</label><br><input type="date" id="posTo" style="padding:6px;"></div>
-                            <button class="btn btn-primary btn-sm" onclick="loadPosReport()"><i class="fas fa-chart-line"></i> Run Report</button>
-                            <span style="flex:1"></span>
-                            <button class="btn btn-sm" onclick="posQuick(0)">Today</button>
-                            <button class="btn btn-sm" onclick="posQuick(7)">7 days</button>
-                            <button class="btn btn-sm" onclick="posQuick(30)">30 days</button>
-                        </div>
-                        <div id="posSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-                            <div class="pos-stat"><span id="posGross">$0.00</span><small>Gross sales</small></div>
-                            <div class="pos-stat"><span id="posTips">$0.00</span><small>Tips</small></div>
-                            <div class="pos-stat"><span id="posCollected">$0.00</span><small>Total collected</small></div>
-                            <div class="pos-stat"><span id="posOrders">0</span><small>Paid orders</small></div>
-                        </div>
-                        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;">
-                            <div style="flex:1;min-width:220px;"><strong style="font-size:.85rem;">By payment method</strong><div id="posByMethod" style="font-size:.9rem;margin-top:4px;"></div></div>
-                            <div style="flex:1;min-width:220px;"><strong style="font-size:.85rem;">By category</strong><div id="posByCat" style="font-size:.9rem;margin-top:4px;"></div></div>
-                        </div>
+                    <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px;">
+                        <div><label style="font-size:.8rem;color:#666;">From</label><br><input type="date" id="posFrom" style="padding:6px;"></div>
+                        <div><label style="font-size:.8rem;color:#666;">To</label><br><input type="date" id="posTo" style="padding:6px;"></div>
+                        <button class="btn btn-primary btn-sm" onclick="loadPosReport()"><i class="fas fa-chart-line"></i> Run</button>
+                        <span style="flex:1"></span>
+                        <button class="btn btn-sm" onclick="posQuick(0)">Today</button>
+                        <button class="btn btn-sm" onclick="posQuick(7)">7 days</button>
+                        <button class="btn btn-sm" onclick="posQuick(30)">30 days</button>
+                        <button class="btn btn-sm" onclick="posQuick(90)">90 days</button>
                     </div>
+                    <div id="posSummary" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;">
+                        <div class="pos-stat"><span id="posGross">$0</span><small>Gross sales</small></div>
+                        <div class="pos-stat"><span id="posTips">$0</span><small>Tips</small></div>
+                        <div class="pos-stat"><span id="posCollected">$0</span><small>Collected</small></div>
+                        <div class="pos-stat"><span id="posOrders">0</span><small>Paid orders</small></div>
+                        <div class="pos-stat"><span id="posAvg">$0</span><small>Avg order</small></div>
+                        <div class="pos-stat"><span id="posItems">0</span><small>Items sold</small></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px;">
+                        <div class="card-box"><h3><i class="fas fa-trophy"></i> Top Sellers</h3><div id="posTop"></div></div>
+                        <div class="card-box"><h3><i class="fas fa-layer-group"></i> By Category</h3><div id="posByCat"></div></div>
+                        <div class="card-box"><h3><i class="fas fa-credit-card"></i> By Payment Method</h3><div id="posByMethod"></div></div>
+                        <div class="card-box"><h3><i class="fas fa-calendar-day"></i> Sales by Day</h3><div id="posByDay" style="max-height:230px;overflow:auto;"></div></div>
+                    </div>
+                    <h3 style="margin:18px 0 8px;">Recent Activity</h3>
+                    <div id="posEvents" style="font-size:.85rem;color:#444;max-height:240px;overflow:auto;background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:10px;"></div>
+                </div>
+            </div>
 
-                    <!-- Menu management -->
-                    <h3 style="margin:0 0 8px;">Menu &amp; Inventory</h3>
+            <!-- Inventory Panel -->
+            <div class="panel" id="inventoryPanel">
+                <div class="panel-header">
+                    <h2>Inventory &amp; Menu</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showPosProductModal()"><i class="fas fa-plus"></i> Add Menu Item</button>
+                </div>
+                <div class="panel-body">
+                    <div id="lowStockBanner" style="display:none;background:#fff3cd;color:#856404;border:1px solid #ffe69c;border-radius:8px;padding:10px 14px;margin-bottom:14px;"></div>
                     <div class="table-wrapper">
                         <table id="posMenuTable">
                             <thead><tr><th>Item</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead>
                             <tbody></tbody>
                         </table>
                     </div>
-
-                    <!-- Activity log -->
-                    <h3 style="margin:18px 0 8px;">Recent Activity</h3>
-                    <div id="posEvents" style="font-size:.85rem;color:#444;max-height:260px;overflow:auto;background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:10px;"></div>
+                    <h3 style="margin:18px 0 8px;">Stock Movements</h3>
+                    <div id="invLog" style="font-size:.85rem;color:#444;max-height:280px;overflow:auto;background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:10px;"></div>
                 </div>
             </div>
 
@@ -1133,8 +1145,16 @@
 
     <style>
         .pos-stat { background:#f5f7fa; border:1px solid #e1e6ee; border-radius:8px; padding:12px; text-align:center; }
-        .pos-stat span { display:block; font-size:1.5rem; font-weight:700; color:#002868; }
-        .pos-stat small { color:#666; }
+        .pos-stat span { display:block; font-size:1.4rem; font-weight:700; color:#002868; }
+        .pos-stat small { color:#666; font-size:.75rem; }
+        .card-box { background:#fff; border:1px solid #d6dbe3; border-radius:8px; padding:14px; }
+        .card-box h3 { margin:0 0 10px; font-size:1rem; color:#002868; }
+        .bar-row { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:.85rem; }
+        .bar-row .lbl { width:40%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .bar-row .track { flex:1; background:#eef1f7; border-radius:4px; height:16px; overflow:hidden; display:block; }
+        .bar-row .fill { display:block; height:100%; min-width:3px; background:#002868; border-radius:4px; }
+        .bar-row .val { width:74px; text-align:right; font-weight:600; color:#002868; }
+        .low-badge { background:#f8d7da; color:#721c24; padding:1px 6px; border-radius:4px; font-size:.75rem; margin-left:6px; }
     </style>
 
     <!-- POS Product Modal -->
@@ -1216,6 +1236,8 @@
                     loadFinanceReport();
                 } else if (tab.dataset.panel === 'bar') {
                     loadBar();
+                } else if (tab.dataset.panel === 'inventory') {
+                    loadInventory();
                 } else if (tab.dataset.panel === 'pos') {
                     const f = document.getElementById('posFrame');
                     if (!f.getAttribute('src')) f.src = 'pos.html';
@@ -1233,7 +1255,8 @@
         }
         function applyPermissions() {
             document.querySelectorAll('.tab').forEach(tab => {
-                tab.style.display = can(tab.dataset.panel) ? '' : 'none';
+                // A tab may gate on a different permission than its panel id (e.g. Inventory uses 'bar').
+                tab.style.display = can(tab.dataset.perm || tab.dataset.panel) ? '' : 'none';
             });
             // Activate the first visible tab so a restricted user lands somewhere valid.
             const first = [...document.querySelectorAll('.tab')].find(t => t.style.display !== 'none');
@@ -1250,11 +1273,15 @@
         let posMenuData = [];
         function money(c) { return '$' + (c / 100).toFixed(2); }
 
+        let lastReport = null;
         async function loadBar() {
             if (!document.getElementById('posFrom').value) posQuick(7);
             else loadPosReport();
-            loadPosMenu();
             loadPosEvents();
+        }
+        async function loadInventory() {
+            loadPosMenu();
+            loadInventoryLog();
         }
         function posQuick(days) {
             const to = new Date();
@@ -1263,26 +1290,90 @@
             document.getElementById('posTo').value = to.toISOString().slice(0, 10);
             loadPosReport();
         }
+        // Horizontal proportion bars: rows of [{label, value(cents or count), sub?}]
+        function barChart(rows, fmt) {
+            if (!rows.length) return '<span style="color:#999">No sales in range</span>';
+            const max = Math.max(...rows.map(r => r.value)) || 1;
+            return rows.map(r => `<div class="bar-row"><span class="lbl" title="${r.label}">${r.label}</span><span class="track"><span class="fill" style="width:${Math.max(3, Math.round(r.value / max * 100))}%"></span></span><span class="val">${fmt(r)}</span></div>`).join('');
+        }
         async function loadPosReport() {
             const from = document.getElementById('posFrom').value, to = document.getElementById('posTo').value;
             try {
                 const r = await api(`/api/admin/pos/report?from=${from}&to=${to}`);
+                lastReport = r;
                 document.getElementById('posGross').textContent = money(r.gross_sales);
                 document.getElementById('posTips').textContent = money(r.tips);
                 document.getElementById('posCollected').textContent = money(r.total_collected);
                 document.getElementById('posOrders').textContent = r.order_count;
-                document.getElementById('posByMethod').innerHTML = (r.by_method || []).map(m => `${m.method}: <strong>${money(m.total)}</strong> (${m.c})`).join('<br>') || '<span style="color:#999">No sales</span>';
-                document.getElementById('posByCat').innerHTML = (r.by_category || []).map(c => `${c.category}: <strong>${money(c.total)}</strong> (${c.qty})`).join('<br>') || '<span style="color:#999">No sales</span>';
+                document.getElementById('posAvg').textContent = money(r.avg_order || 0);
+                document.getElementById('posItems').textContent = r.items_sold || 0;
+                document.getElementById('posTop').innerHTML = barChart(
+                    (r.top_items || []).map(i => ({ label: i.name, value: i.total, qty: i.qty })),
+                    i => `${money(i.value)} · ${i.qty}`);
+                document.getElementById('posByCat').innerHTML = barChart(
+                    (r.by_category || []).map(c => ({ label: c.category, value: c.total, qty: c.qty })),
+                    c => `${money(c.value)} · ${c.qty}`);
+                document.getElementById('posByMethod').innerHTML = barChart(
+                    (r.by_method || []).map(m => ({ label: m.method.toUpperCase(), value: m.total, c: m.c })),
+                    m => `${money(m.value)} · ${m.c}`);
+                document.getElementById('posByDay').innerHTML = (r.by_day || []).length
+                    ? `<table style="width:100%;font-size:.85rem;"><thead><tr><th style="text-align:left;">Day</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Gross</th><th style="text-align:right;">Tips</th></tr></thead><tbody>${r.by_day.map(d => `<tr><td>${d.day}</td><td style="text-align:right;">${d.orders}</td><td style="text-align:right;">${money(d.gross)}</td><td style="text-align:right;">${money(d.tips)}</td></tr>`).join('')}</tbody></table>`
+                    : '<span style="color:#999">No sales in range</span>';
             } catch (e) { console.error(e); }
         }
+        function exportPosCsv() {
+            const r = lastReport;
+            if (!r) { alert('Run a report first.'); return; }
+            const rows = [
+                ['Bar Sales Report', `${r.from} to ${r.to}`],
+                [],
+                ['Gross sales', (r.gross_sales/100).toFixed(2)],
+                ['Tips', (r.tips/100).toFixed(2)],
+                ['Total collected', (r.total_collected/100).toFixed(2)],
+                ['Paid orders', r.order_count],
+                ['Items sold', r.items_sold],
+                ['Avg order', (r.avg_order/100).toFixed(2)],
+                [],
+                ['By day', 'Orders', 'Gross', 'Tips'],
+                ...(r.by_day||[]).map(d => [d.day, d.orders, (d.gross/100).toFixed(2), (d.tips/100).toFixed(2)]),
+                [],
+                ['Top sellers', 'Qty', 'Revenue'],
+                ...(r.top_items||[]).map(i => [i.name, i.qty, (i.total/100).toFixed(2)]),
+                [],
+                ['By category', 'Qty', 'Revenue'],
+                ...(r.by_category||[]).map(c => [c.category, c.qty, (c.total/100).toFixed(2)]),
+                [],
+                ['By method', 'Count', 'Total'],
+                ...(r.by_method||[]).map(m => [m.method, m.c, (m.total/100).toFixed(2)]),
+            ];
+            const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Post228_BarSales_${r.from}_to_${r.to}.csv`;
+            a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+        async function loadInventoryLog() {
+            try {
+                const log = await api('/api/admin/pos/inventory-log');
+                document.getElementById('invLog').innerHTML = log.map(l =>
+                    `<div style="padding:2px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${new Date(l.created_at + 'Z').toLocaleString()}</span> — <strong>${l.name || 'item'}</strong> <span style="color:${l.change < 0 ? '#a00' : '#2e7d32'};font-weight:600;">${l.change > 0 ? '+' : ''}${l.change}</span> · ${l.reason}${l.note ? ' · ' + l.note : ''}</div>`
+                ).join('') || '<span style="color:#999">No stock movements yet</span>';
+            } catch (e) {}
+        }
         async function loadPosMenu() {
+            const inv = await api('/api/admin/pos/inventory').catch(() => []);
+            const low = inv.filter(i => i.low);
+            const banner = document.getElementById('lowStockBanner');
+            if (low.length) { banner.style.display = 'block'; banner.innerHTML = `<i class="fas fa-triangle-exclamation"></i> <strong>Low stock:</strong> ${low.map(i => `${i.name} (${i.stock_qty})`).join(', ')}`; }
+            else banner.style.display = 'none';
             posMenuData = await api('/api/admin/pos/products');
             document.querySelector('#posMenuTable tbody').innerHTML = posMenuData.map(p => `
                 <tr>
                     <td>${p.name}</td>
                     <td>${p.category}</td>
                     <td>${money(p.price)}</td>
-                    <td>${p.track_inventory ? `${p.stock_qty ?? 0} <button class="btn btn-sm" title="Restock" onclick="restockProduct(${p.id})"><i class="fas fa-plus"></i></button>` : '<span style="color:#999">—</span>'}</td>
+                    <td>${p.track_inventory ? `<strong>${p.stock_qty ?? 0}</strong>${(p.stock_qty != null && p.stock_qty <= 6) ? '<span class="low-badge">low</span>' : ''} <button class="btn btn-sm" title="Restock / adjust" onclick="restockProduct(${p.id})"><i class="fas fa-plus-minus"></i></button>` : '<span style="color:#999">—</span>'}</td>
                     <td><span class="badge ${p.active ? 'badge-paid' : 'badge-cancelled'}">${p.active ? 'Active' : 'Hidden'}</span></td>
                     <td class="actions">
                         <button class="btn btn-sm" onclick="editPosProduct(${p.id})"><i class="fas fa-edit"></i></button>
@@ -2361,6 +2452,22 @@
                 }
             });
         });
+
+        // Auto-update: reload to a newer deployed build when idle (no modal open), so the
+        // admin picks up changes without a manual hard-refresh (GitHub Pages caches 10 min).
+        const ADMIN_BUILD = (document.querySelector('meta[name="build"]') || {}).content || '';
+        async function adminCheckUpdate() {
+            try {
+                const html = await (await fetch(location.pathname + '?_cb=' + Date.now(), { cache: 'no-store' })).text();
+                const m = html.match(/name="build" content="([^"]+)"/);
+                const modalOpen = !!document.querySelector('.modal-overlay.active');
+                if (m && m[1] && m[1] !== ADMIN_BUILD && !modalOpen) {
+                    location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
+                }
+            } catch (e) {}
+        }
+        setInterval(adminCheckUpdate, 5 * 60 * 1000);
+        adminCheckUpdate();
     </script>
 </body>
 </html>
