@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Pay Hall Rental Invoice - Somerset American Legion Post 228</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <div data-component="top-bar"></div>
+    </div>
+
+    <div data-component="header"></div>
+
+    <div data-component="nav"></div>
+
+    <section class="page-header">
+        <div class="container">
+            <h1>Hall Rental Invoice</h1>
+            <p class="breadcrumb"><a href="index.html">Home</a> / Pay Invoice</p>
+        </div>
+    </section>
+
+    <main class="page-content">
+        <div class="container">
+            <article class="primary-content" style="max-width: 720px; margin: 0 auto;">
+
+                <!-- Loading -->
+                <div id="loading" style="text-align:center; padding:3rem 0;">
+                    <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#002868;"></i>
+                    <p>Loading your invoice…</p>
+                </div>
+
+                <!-- Error / invalid link -->
+                <div id="invalid" class="info-card" style="display:none; padding:2rem; text-align:center;">
+                    <div class="card-icon"><i class="fas fa-triangle-exclamation" style="color:#b22234;"></i></div>
+                    <h3>Invoice Not Found</h3>
+                    <p id="invalid-msg">We couldn't find this invoice. The link may be incorrect or expired.</p>
+                    <p>Please contact the post: <br>Phone: 508-679-2380 · Email: somersetamericanlegion@gmail.com</p>
+                </div>
+
+                <!-- Already paid -->
+                <div id="paid" class="info-card" style="display:none; padding:2rem; text-align:center;">
+                    <div class="card-icon"><i class="fas fa-circle-check" style="color:#28a745;"></i></div>
+                    <h3>This Invoice Is Paid</h3>
+                    <p>Your hall rental for <strong id="paid-date"></strong> is confirmed. Thank you!</p>
+                </div>
+
+                <!-- Invoice + payment -->
+                <div id="invoice" style="display:none;">
+                    <div class="info-card" style="padding:2rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #002868; padding-bottom:1rem; margin-bottom:1rem;">
+                            <div>
+                                <h2 style="margin:0; color:#002868;">INVOICE</h2>
+                                <p style="margin:.25rem 0 0; color:#6c757d;" id="inv-number"></p>
+                            </div>
+                            <div style="text-align:right; font-size:.9rem; color:#6c757d;">
+                                <strong>Somerset American Legion</strong><br>Post 228<br>55 Roosevelt Avenue<br>Somerset, MA 02726
+                            </div>
+                        </div>
+
+                        <p style="margin:.25rem 0;"><strong>Billed to:</strong> <span id="inv-name"></span></p>
+
+                        <table style="width:100%; border-collapse:collapse; margin:1.25rem 0;">
+                            <thead>
+                                <tr style="text-align:left; border-bottom:1px solid #ddd;">
+                                    <th style="padding:.5rem 0;">Description</th>
+                                    <th style="padding:.5rem 0; text-align:right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding:.6rem 0;" id="inv-desc"></td>
+                                    <td style="padding:.6rem 0; text-align:right;" id="inv-line"></td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr style="border-top:2px solid #002868;">
+                                    <td style="padding:.6rem 0;"><strong>Total Due</strong></td>
+                                    <td style="padding:.6rem 0; text-align:right; font-size:1.25rem; color:#002868;"><strong id="inv-total"></strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <form id="payment-form">
+                            <div id="payment-element" style="margin-top:1rem;"><!-- Stripe Payment Element --></div>
+                            <button type="submit" class="btn btn-primary" id="pay-btn" style="margin-top:1.25rem; width:100%;"><i class="fas fa-lock"></i> <span id="pay-btn-text">Pay Now</span></button>
+                            <div id="pay-error" style="margin-top:1rem; display:none; color:#721c24;"></div>
+                        </form>
+                        <p style="margin-top:1rem; font-size:.85rem; color:#6c757d;"><i class="fas fa-shield-halved"></i> Payment in full confirms your reservation. Processed securely by Stripe; your card details are entered directly on this page and never touch our servers.</p>
+                    </div>
+                </div>
+
+                <!-- Success -->
+                <div id="success" class="info-card" style="display:none; padding:2rem; text-align:center;">
+                    <div class="card-icon"><i class="fas fa-circle-check" style="color:#28a745;"></i></div>
+                    <h3>Payment Received — Reservation Confirmed!</h3>
+                    <p>Thank you! Your hall rental for <strong id="success-date"></strong> is now confirmed. A receipt has been emailed to you.</p>
+                    <p>We look forward to hosting your event.</p>
+                </div>
+
+            </article>
+        </div>
+    </main>
+
+    <div data-component="footer"></div>
+    <script src="js/components.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+    (function() {
+        const API_URL = 'https://api.somersetamericanlegion.org';
+        const STRIPE_PK = 'pk_test_51TwB389ny6NMeRIFnulKC2aMWEq9MCJESmNvodq91aR6gKq6s75DGhYywWXyjWuJbH6z5W0JuC8irY2cZrLpeUFh00Z9fFalQM';
+        const token = new URLSearchParams(window.location.search).get('token');
+
+        const $ = (id) => document.getElementById(id);
+        const show = (id) => { $('loading').style.display = 'none'; $(id).style.display = 'block'; };
+        function fmtDate(d) {
+            try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' }); }
+            catch (e) { return d; }
+        }
+        function money(cents) { return '$' + (cents/100).toFixed(2); }
+
+        let stripe = window.Stripe ? Stripe(STRIPE_PK) : null;
+        let elements = null;
+
+        async function init() {
+            if (!token) { $('invalid-msg').textContent = 'No invoice link was provided.'; show('invalid'); return; }
+            let data;
+            try {
+                const res = await fetch(`${API_URL}/api/rentals/pay/${encodeURIComponent(token)}`);
+                data = await res.json();
+                if (!res.ok) { $('invalid-msg').textContent = data.error || 'Invoice not found.'; show('invalid'); return; }
+            } catch (e) { $('invalid-msg').textContent = 'Could not load the invoice. Please try again later.'; show('invalid'); return; }
+
+            if (data.paid) { $('paid-date').textContent = fmtDate(data.event_date); show('paid'); return; }
+            if (data.cancelled) { $('invalid-msg').textContent = 'This reservation is no longer active. Please contact the post.'; show('invalid'); return; }
+
+            // Populate the invoice
+            $('inv-number').textContent = data.invoice_number ? ('Invoice ' + data.invoice_number) : '';
+            $('inv-name').textContent = data.contact_name;
+            $('inv-desc').textContent = `Hall Rental — ${fmtDate(data.event_date)} (${data.event_type})`;
+            $('inv-line').textContent = money(data.amount_due);
+            $('inv-total').textContent = money(data.amount_due);
+            $('pay-btn-text').textContent = 'Pay ' + money(data.amount_due);
+            show('invoice');
+
+            if (!stripe) { showError('Payment library failed to load. Please refresh.'); return; }
+
+            // Get the invoice's client secret and mount the embedded card form.
+            try {
+                const res = await fetch(`${API_URL}/api/rentals/pay/${encodeURIComponent(token)}/intent`, { method: 'POST' });
+                const pay = await res.json();
+                if (!res.ok || !pay.clientSecret) { showError(pay.error || 'Could not start payment.'); return; }
+                elements = stripe.elements({
+                    clientSecret: pay.clientSecret,
+                    fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap' }],
+                    appearance: { theme: 'stripe', variables: { colorPrimary: '#002868', fontFamily: '"Source Sans 3", sans-serif', borderRadius: '4px' } },
+                });
+                elements.create('payment').mount('#payment-element');
+            } catch (e) { showError('Could not start payment. Please try again.'); }
+        }
+
+        function showError(msg) { const e = $('pay-error'); e.textContent = msg; e.style.display = 'block'; }
+
+        document.addEventListener('submit', async (ev) => {
+            if (ev.target.id !== 'payment-form') return;
+            ev.preventDefault();
+            if (!elements) return;
+            $('pay-error').style.display = 'none';
+            const btn = $('pay-btn'); btn.disabled = true;
+            const orig = $('pay-btn-text').textContent; $('pay-btn-text').textContent = 'Processing…';
+
+            const { error, paymentIntent } = await stripe.confirmPayment({
+                elements,
+                confirmParams: { return_url: window.location.href },
+                redirect: 'if_required',
+            });
+            if (error) {
+                showError(error.message || 'Payment could not be completed. Please check your card and try again.');
+                btn.disabled = false; $('pay-btn-text').textContent = orig;
+                return;
+            }
+            if (paymentIntent && paymentIntent.status === 'succeeded') {
+                $('success-date').textContent = $('inv-desc').textContent.replace('Hall Rental — ', '').replace(/\s*\(.*\)$/, '');
+                $('invoice').style.display = 'none';
+                show('success');
+            } else {
+                showError('Your payment is processing. You will receive a confirmation email shortly.');
+            }
+        });
+
+        init();
+    })();
+    </script>
+</body>
+</html>

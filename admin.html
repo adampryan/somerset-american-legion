@@ -1870,26 +1870,32 @@
                 <p><strong>Details:</strong> ${rental.details || 'None'}</p>
                 <p><strong>Status:</strong> <span class="badge badge-${rental.status}">${rental.status}</span></p>
                 ${rental.expires_at ? `<p><strong>Expires:</strong> ${new Date(rental.expires_at).toLocaleString()}</p>` : ''}
+                ${rental.amount_due ? `<p><strong>Invoice:</strong> ${rental.invoice_number || '—'} — $${(rental.amount_due/100).toFixed(2)} <span class="badge badge-${rental.status}">${rental.status === 'paid' ? 'PAID' : 'awaiting payment'}</span></p>` : ''}
+                ${rental.pay_token && rental.status !== 'paid' ? `<p><strong>Pay link:</strong> <a href="https://www.somersetamericanlegion.org/pay-rental.html?token=${rental.pay_token}" target="_blank">open</a> &middot; <a href="#" onclick="copyPayLink('${rental.pay_token}');return false;">copy</a></p>` : ''}
             `;
             
             let actions = '';
-            if (rental.status === 'pending') {
+            if (rental.status === 'pending' || rental.status === 'approved') {
+                const sendLabel = rental.status === 'pending' ? 'Approve &amp; Send Invoice' : 'Re-send / Update Invoice';
                 actions = `
-                    <button class="btn btn-success" onclick="updateRentalStatus(${id}, 'approved')">
-                        <i class="fas fa-check"></i> Approve
-                    </button>
-                    <button class="btn btn-danger" onclick="updateRentalStatus(${id}, 'cancelled')">
-                        <i class="fas fa-times"></i> Reject
-                    </button>
-                `;
-            } else if (rental.status === 'approved') {
-                actions = `
-                    <button class="btn btn-success" onclick="updateRentalStatus(${id}, 'paid')">
-                        <i class="fas fa-dollar-sign"></i> Mark Paid
-                    </button>
-                    <button class="btn btn-danger" onclick="updateRentalStatus(${id}, 'cancelled')">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
+                    <div style="width:100%;">
+                        <label style="display:block;font-weight:600;margin-bottom:.35rem;">Amount to charge (payment in full to book)</label>
+                        <div style="display:flex;gap:.4rem;margin-bottom:.5rem;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-sm" onclick="document.getElementById('invoiceAmount').value=150">$150 Officer</button>
+                            <button type="button" class="btn btn-sm" onclick="document.getElementById('invoiceAmount').value=200">$200 Member</button>
+                            <button type="button" class="btn btn-sm" onclick="document.getElementById('invoiceAmount').value=250">$250 Non-Member</button>
+                        </div>
+                        <input type="number" id="invoiceAmount" min="1" step="1" placeholder="Amount in dollars" value="${rental.amount_due ? (rental.amount_due/100) : ''}" style="width:100%;padding:.5rem;margin-bottom:.75rem;">
+                        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                            <button class="btn btn-success" onclick="approveAndInvoice(${id})">
+                                <i class="fas fa-file-invoice-dollar"></i> ${sendLabel}
+                            </button>
+                            ${rental.status === 'approved' ? `<button class="btn btn-primary" onclick="updateRentalStatus(${id}, 'paid')" title="Record an offline/cash payment"><i class="fas fa-money-bill"></i> Mark Paid (cash)</button>` : ''}
+                            <button class="btn btn-danger" onclick="updateRentalStatus(${id}, 'cancelled')">
+                                <i class="fas fa-times"></i> ${rental.status === 'pending' ? 'Reject' : 'Cancel'}
+                            </button>
+                        </div>
+                    </div>
                 `;
             } else if (rental.status === 'paid') {
                 actions = `
@@ -1910,6 +1916,28 @@
             await api(`/api/admin/rentals/${id}`, 'PUT', { status });
             closeModal('rentalModal');
             loadRentals();
+        }
+
+        async function approveAndInvoice(id) {
+            const amount = Number(document.getElementById('invoiceAmount').value);
+            if (!amount || amount < 1) { alert('Please enter the rental amount to charge.'); return; }
+            if (!confirm(`Approve this rental and email the renter an invoice for $${amount.toFixed(2)}?`)) return;
+            try {
+                const res = await api(`/api/admin/rentals/${id}/invoice`, 'POST', { amount });
+                closeModal('rentalModal');
+                loadRentals();
+                alert(`Invoice ${res.invoice_number || ''} sent for $${amount.toFixed(2)}.\nRenter pay link:\n${res.pay_url}`);
+            } catch (err) {
+                alert('Could not send the invoice. ' + (err.message || 'Please try again.'));
+            }
+        }
+
+        function copyPayLink(token) {
+            const url = `https://www.somersetamericanlegion.org/pay-rental.html?token=${token}`;
+            navigator.clipboard.writeText(url).then(
+                () => alert('Pay link copied to clipboard.'),
+                () => prompt('Copy this pay link:', url)
+            );
         }
 
         async function deleteRental(id) {
