@@ -106,7 +106,7 @@
           <div class="row"><span>Subtotal</span><strong id="subtotal">$0.00</strong></div>
           <div class="row" id="tipRow" style="display:none;"><span>Tip</span><strong id="tipAmt">$0.00</strong></div>
           <div class="row grand"><span>Total</span><span id="grand">$0.00</span></div>
-          <div style="font-size:.8rem;color:#666;margin-top:6px;">Tip (card/cash — QR asks the customer):</div>
+          <div style="font-size:.8rem;color:#666;margin-top:6px;">Cash tip (card &amp; QR ask the customer):</div>
           <div class="tips" id="tips"></div>
         </div>
         <div class="pay">
@@ -234,7 +234,8 @@
         const id=await ensureOrder();
         const sub=subtotal();
         const amount = splitWays>1 ? Math.ceil(sub/splitWays) : undefined; // even split share
-        const body={ method, tip: (method==='qr'?0:tipCents()), ...(amount?{amount}:{}) };
+        // Cash tip is set by the bartender in the cart; card & QR let the CUSTOMER pick a tip.
+        const body={ method, tip: (method==='cash'?tipCents():0), ...(amount?{amount}:{}) };
         const r=await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify(body)});
         const j=await r.json(); if(!r.ok)throw new Error(j.error||'charge failed');
         if(method==='cash') return doneModal('Cash payment recorded');
@@ -261,17 +262,43 @@
       poll(orderId, ()=>{ $('qrstatus').innerHTML='<strong style="color:#2e7d32;">✅ Paid!</strong>'; });
     }
 
-    // Manual card entry (bartender keys the card)
-    let mEl=null;
+    // Manual card entry (turn the tablet to the customer): tip + total, then card.
     function manualModal(j){
-      modal(`<div class="modal"><h2>Enter Card — ${money(j.total)}</h2><div id="pe"></div><button class="btn primary" id="mpay">Charge ${money(j.total)}</button><button class="btn ghost" onclick="window._next()">Cancel</button><div class="err" id="merr"></div></div>`);
-      const elements=stripe.elements({clientSecret:j.clientSecret, appearance:{theme:'stripe',variables:{colorPrimary:'#002868'}}});
-      mEl=elements; elements.create('payment').mount('#pe');
+      const base=j.amount; let tipC=0;
+      modal(`<div class="modal" style="text-align:left;">
+        <h2 style="text-align:center;">Card Payment</h2>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Subtotal</span><strong>${money(base)}</strong></div>
+        <p style="margin:10px 0 4px;font-weight:600;">Add a tip?</p>
+        <div class="tips" id="mTips"></div>
+        <input type="number" id="mCustom" placeholder="Custom tip ($)" min="0" step="0.50" style="display:none;width:100%;padding:9px;margin-top:8px;border:1px solid #ccc;border-radius:8px;">
+        <div style="display:flex;justify-content:space-between;padding:4px 0;margin-top:6px;"><span>Tip</span><strong id="mTip">$0.00</strong></div>
+        <div style="display:flex;justify-content:space-between;border-top:2px solid var(--navy);padding-top:8px;margin-top:4px;font-size:1.35rem;color:var(--navy);"><strong>Total</strong><strong id="mTotal">${money(base)}</strong></div>
+        <div id="pe" style="margin-top:14px;"></div>
+        <button class="btn primary" id="mpay">Pay ${money(base)}</button>
+        <button class="btn ghost" onclick="window._next()">Cancel</button>
+        <div class="err" id="merr"></div>
+      </div>`);
+      const opts=[['No tip',0],['15%',.15],['18%',.18],['20%',.20],['$',null]];
+      $('mTips').innerHTML=opts.map((o,i)=>`<button type="button" data-pct="${o[1]}" class="${o[1]===0?'sel':''}">${o[0]}</button>`).join('');
+      const elements=stripe.elements({clientSecret:j.clientSecret, fonts:[{cssSrc:'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap'}], appearance:{theme:'stripe',variables:{colorPrimary:'#002868',fontFamily:'"Source Sans 3",sans-serif',borderRadius:'8px'}}});
+      elements.create('payment').mount('#pe');
+
+      async function setTip(c){
+        tipC=c; $('mTip').textContent=money(c); $('mTotal').textContent=money(base+c); $('mpay').textContent='Pay '+money(base+c);
+        try{ const r=await fetch(`${API}/api/pos/payments/${j.payment_id}/tip`,{method:'POST',headers:auth(),body:JSON.stringify({tip:c})}); if(r.ok) await elements.fetchUpdates(); }catch(e){}
+      }
+      $('mTips').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+        $('mTips').querySelectorAll('button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+        if(b.dataset.pct==='null'){ $('mCustom').style.display='block'; $('mCustom').focus(); }
+        else { $('mCustom').style.display='none'; setTip(Math.round(base*parseFloat(b.dataset.pct))); }
+      }));
+      $('mCustom').addEventListener('input',()=>setTip(Math.max(0,Math.round((parseFloat($('mCustom').value)||0)*100))));
+
       $('mpay').addEventListener('click',async()=>{
-        $('mpay').disabled=true; $('mpay').textContent='Processing…';
+        $('mpay').disabled=true; const t=$('mpay').textContent; $('mpay').textContent='Processing…';
         const {error,paymentIntent}=await stripe.confirmPayment({elements,confirmParams:{return_url:location.href},redirect:'if_required'});
-        if(error){ $('merr').textContent=error.message; $('merr').style.display='block'; $('mpay').disabled=false; $('mpay').textContent='Charge '+money(j.total); return; }
-        if(paymentIntent&&paymentIntent.status==='succeeded'){ modal(`<div class="modal"><div class="big">✅</div><h2>Approved</h2><button class="btn primary" onclick="window._next()">New Order</button></div>`); poll(orderId); }
+        if(error){ $('merr').textContent=error.message; $('merr').style.display='block'; $('mpay').disabled=false; $('mpay').textContent=t; return; }
+        if(paymentIntent&&paymentIntent.status==='succeeded'){ modal(`<div class="modal"><div class="big">✅</div><h2>Approved</h2><p>${money(base+tipC)} paid</p><button class="btn primary" onclick="window._next()">New Order</button></div>`); poll(orderId); }
       });
     }
 
