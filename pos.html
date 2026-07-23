@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
+    <meta name="build" content="20260723-1"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -382,11 +383,27 @@
 
     window.charge=charge; window.openTabs=openTabs; window.saveTab=saveTab; window.splitPrompt=splitPrompt; window.clearItems=clearItems; window.lock=lock;
 
+    // ---------- auto-update (defeats GitHub Pages' 10-min HTML cache on kiosks) ----------
+    // If a newer build is deployed, reload to it — but only when idle (empty cart, no modal),
+    // so a bartender is never interrupted mid-order.
+    const POS_BUILD = (document.querySelector('meta[name="build"]')||{}).content || '';
+    async function checkUpdate(){
+      try{
+        const html = await (await fetch(location.pathname + '?_cb=' + Date.now(), {cache:'no-store'})).text();
+        const m = html.match(/name="build" content="([^"]+)"/);
+        if(m && m[1] && m[1] !== POS_BUILD && cart.length===0 && !$('modalRoot').innerHTML){
+          location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
+        }
+      }catch(e){}
+    }
+    setInterval(checkUpdate, 5*60*1000);
+
     // ---------- boot ----------
     buildKeypad();
     if(TOKEN){ // verify token still works
       fetch(`${API}/api/pos/products`,{headers:auth()}).then(r=>{ if(r.ok) startApp(); else lock(); }).catch(()=>{});
     }
+    checkUpdate();
   })();
   </script>
 </body>
