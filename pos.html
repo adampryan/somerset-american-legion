@@ -335,22 +335,35 @@
     // ---------- tabs ----------
     async function saveTab(){
       if(!cart.length){ toast('Cart is empty'); return; }
-      const label=prompt('Tab name (customer):'); if(label===null)return;
-      const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items:cart.map(i=>({product_id:i.product_id,qty:i.qty})),label,server_name:$('server').value})});
-      if(r.ok){ toast('Tab saved'); clearCart(); refreshTabs(); }
+      const items=cart.map(i=>({product_id:i.product_id,qty:i.qty}));
+      if(orderId){
+        // Reopened tab: update the existing order instead of creating a duplicate.
+        const r=await fetch(`${API}/api/pos/orders/${orderId}/items`,{method:'PUT',headers:auth(),body:JSON.stringify({items})});
+        if(r.ok){ toast('Tab updated'); clearCart(); refreshTabs(); }
+      } else {
+        const label=prompt('Tab name (customer):'); if(label===null)return;
+        const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items,label,server_name:$('server').value})});
+        if(r.ok){ toast('Tab saved'); clearCart(); refreshTabs(); }
+      }
     }
     async function refreshTabs(){
       try{ const r=await fetch(`${API}/api/pos/orders?status=open`,{headers:auth()}); const t=await r.json(); window._tabs=t; $('tabcount').textContent=t.length; }catch(e){}
     }
     async function openTabs(){
       const t=window._tabs||[];
-      modal(`<div class="modal"><h2>Open Tabs</h2><div class="tablist">${t.length?t.map(o=>`<div class="tab"><span>${o.label||'Tab #'+o.id}</span><span>${money(o.subtotal)} <button class="btn primary" style="width:auto;padding:6px 12px;margin:0 0 0 8px;" onclick="window._openTab(${o.id})">Open</button></span></div>`).join(''):'<p>No open tabs.</p>'}</div><button class="btn ghost" onclick="window._close()">Close</button></div>`);
+      modal(`<div class="modal"><h2>Open Tabs</h2><div class="tablist">${t.length?t.map(o=>`<div class="tab"><span>${o.label||'Tab #'+o.id}</span><span style="white-space:nowrap;">${money(o.subtotal)} <button class="btn primary" style="width:auto;padding:6px 12px;margin:0 0 0 8px;" onclick="window._openTab(${o.id})">Open</button> <button class="btn ghost" style="width:auto;padding:6px 10px;margin:0;" title="Close/discard tab" onclick="window._closeTab(${o.id})">✕</button></span></div>`).join(''):'<p>No open tabs.</p>'}</div><button class="btn ghost" onclick="window._close()">Done</button></div>`);
     }
     window._openTab=async(id)=>{
       const r=await fetch(`${API}/api/pos/orders/${id}`,{headers:auth()}); const o=await r.json();
       orderId=id; cart=o.items.map(i=>({product_id:i.product_id,name:i.name,price:i.unit_price,qty:i.qty}));
       $('cartTitle').textContent=(o.label||'Tab #'+id);
       closeModal(); renderCart();
+    };
+    window._closeTab=async(id)=>{
+      if(!confirm('Close and discard this tab? No payment will be recorded.')) return;
+      await fetch(`${API}/api/pos/orders/${id}/void`,{method:'POST',headers:auth()});
+      if(orderId===id) clearCart();
+      await refreshTabs(); openTabs();
     };
     window._close=closeModal;
 
