@@ -104,7 +104,7 @@
         }
         $('custom-tip').addEventListener('input',tipFromCustom);
         function tipFromCustom(){ selectTip(Math.max(0,Math.round((parseFloat($('custom-tip').value)||0)*100))); }
-        function selectTip(c){ tipCents=c; $('tipval').textContent=money(c); $('tip-line').style.display=c>0?'flex':'none'; $('total').textContent=money(amount+c); }
+        function selectTip(c){ tipCents=c; $('tipval').textContent=money(c); $('tip-line').style.display=c>0?'flex':'none'; $('total').textContent=money(amount+c); $('paybtn').textContent='Pay '+money(amount+c); }
 
         // (Re)create the PaymentIntent for the chosen tip just before mounting/paying.
         async function ensureIntent(){
