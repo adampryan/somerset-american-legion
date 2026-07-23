@@ -100,7 +100,7 @@
         <div class="grid" id="grid"></div>
       </div>
       <div class="cart">
-        <div class="head"><strong id="cartTitle">New Order</strong><span class="spacer" style="flex:1"></span><button onclick="clearCart()" style="border:none;background:none;color:#a00;">Clear</button></div>
+        <div class="head"><strong id="cartTitle">New Order</strong><span class="spacer" style="flex:1"></span><button onclick="clearItems()" style="border:none;background:none;color:#a00;">Clear</button></div>
         <div class="items" id="cartItems"><p style="color:#999;text-align:center;margin-top:30px;">Tap items to add</p></div>
         <div class="totals">
           <div class="row grand"><span>Total</span><span id="grand">$0.00</span></div>
@@ -193,7 +193,8 @@
       renderCart();
     }
     function chg(id,d){ const it=cart.find(x=>x.product_id===id); if(!it)return; it.qty+=d; if(it.qty<=0)cart=cart.filter(x=>x!==it); renderCart(); }
-    function clearCart(){ cart=[]; orderId=null; splitWays=1; $('cartTitle').textContent='New Order'; renderCart(); }
+    function resetOrder(){ cart=[]; orderId=null; splitWays=1; $('cartTitle').textContent='New Order'; renderCart(); } // start fresh
+    function clearItems(){ cart=[]; renderCart(); } // empty the view; keeps the tab context so Save persists it
     function subtotal(){ return cart.reduce((s,i)=>s+i.price*i.qty,0); }
     function renderCart(){
       if(!cart.length){ $('cartItems').innerHTML='<p style="color:#999;text-align:center;margin-top:30px;">Tap items to add</p>'; }
@@ -273,7 +274,7 @@
       poll(orderId);
     }
     function orderPaidCheck(){}
-    window._next=()=>{ closeModal(); clearCart(); loadMenu(); refreshTabs(); };
+    window._next=()=>{ closeModal(); resetOrder(); loadMenu(); refreshTabs(); };
 
     // QR
     function qrModal(j){
@@ -334,16 +335,21 @@
 
     // ---------- tabs ----------
     async function saveTab(){
-      if(!cart.length){ toast('Cart is empty'); return; }
       const items=cart.map(i=>({product_id:i.product_id,qty:i.qty}));
       if(orderId){
-        // Reopened tab: update the existing order instead of creating a duplicate.
+        // Reopened tab. Emptied out -> close it; otherwise update it in place.
+        if(items.length===0){
+          if(!confirm('This tab is empty — close it?')) return;
+          await fetch(`${API}/api/pos/orders/${orderId}/void`,{method:'POST',headers:auth()});
+          toast('Tab closed'); resetOrder(); refreshTabs(); return;
+        }
         const r=await fetch(`${API}/api/pos/orders/${orderId}/items`,{method:'PUT',headers:auth(),body:JSON.stringify({items})});
-        if(r.ok){ toast('Tab updated'); clearCart(); refreshTabs(); }
+        if(r.ok){ toast('Tab updated'); resetOrder(); refreshTabs(); }
       } else {
+        if(!items.length){ toast('Cart is empty'); return; }
         const label=prompt('Tab name (customer):'); if(label===null)return;
         const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items,label,server_name:$('server').value})});
-        if(r.ok){ toast('Tab saved'); clearCart(); refreshTabs(); }
+        if(r.ok){ toast('Tab saved'); resetOrder(); refreshTabs(); }
       }
     }
     async function refreshTabs(){
@@ -362,7 +368,7 @@
     window._closeTab=async(id)=>{
       if(!confirm('Close and discard this tab? No payment will be recorded.')) return;
       await fetch(`${API}/api/pos/orders/${id}/void`,{method:'POST',headers:auth()});
-      if(orderId===id) clearCart();
+      if(orderId===id) resetOrder();
       await refreshTabs(); openTabs();
     };
     window._close=closeModal;
@@ -374,7 +380,7 @@
       toast(splitWays>1?`Split ${splitWays} ways — each Charge takes one ${money(Math.ceil(subtotal()/splitWays))} share`:'Split off');
     }
 
-    window.charge=charge; window.openTabs=openTabs; window.saveTab=saveTab; window.splitPrompt=splitPrompt; window.clearCart=clearCart; window.lock=lock;
+    window.charge=charge; window.openTabs=openTabs; window.saveTab=saveTab; window.splitPrompt=splitPrompt; window.clearItems=clearItems; window.lock=lock;
 
     // ---------- boot ----------
     buildKeypad();
