@@ -567,6 +567,9 @@
             <button class="tab" data-panel="events">
                 <i class="fas fa-bullhorn"></i> Events
             </button>
+            <button class="tab" data-panel="bar">
+                <i class="fas fa-beer-mug-empty"></i> Bar / POS
+            </button>
             <button class="tab" data-panel="subscribers">
                 <i class="fas fa-envelope"></i> Subscribers
             </button>
@@ -701,6 +704,53 @@
                 </div>
             </div>
             
+            <!-- Bar / POS Panel -->
+            <div class="panel" id="barPanel">
+                <div class="panel-header">
+                    <h2>Bar / POS</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showPosProductModal()">
+                        <i class="fas fa-plus"></i> Add Menu Item
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <!-- Sales summary -->
+                    <div style="background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:16px;margin-bottom:18px;">
+                        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px;">
+                            <div><label style="font-size:.8rem;color:#666;">From</label><br><input type="date" id="posFrom" style="padding:6px;"></div>
+                            <div><label style="font-size:.8rem;color:#666;">To</label><br><input type="date" id="posTo" style="padding:6px;"></div>
+                            <button class="btn btn-primary btn-sm" onclick="loadPosReport()"><i class="fas fa-chart-line"></i> Run Report</button>
+                            <span style="flex:1"></span>
+                            <button class="btn btn-sm" onclick="posQuick(0)">Today</button>
+                            <button class="btn btn-sm" onclick="posQuick(7)">7 days</button>
+                            <button class="btn btn-sm" onclick="posQuick(30)">30 days</button>
+                        </div>
+                        <div id="posSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                            <div class="pos-stat"><span id="posGross">$0.00</span><small>Gross sales</small></div>
+                            <div class="pos-stat"><span id="posTips">$0.00</span><small>Tips</small></div>
+                            <div class="pos-stat"><span id="posCollected">$0.00</span><small>Total collected</small></div>
+                            <div class="pos-stat"><span id="posOrders">0</span><small>Paid orders</small></div>
+                        </div>
+                        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;">
+                            <div style="flex:1;min-width:220px;"><strong style="font-size:.85rem;">By payment method</strong><div id="posByMethod" style="font-size:.9rem;margin-top:4px;"></div></div>
+                            <div style="flex:1;min-width:220px;"><strong style="font-size:.85rem;">By category</strong><div id="posByCat" style="font-size:.9rem;margin-top:4px;"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- Menu management -->
+                    <h3 style="margin:0 0 8px;">Menu &amp; Inventory</h3>
+                    <div class="table-wrapper">
+                        <table id="posMenuTable">
+                            <thead><tr><th>Item</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Activity log -->
+                    <h3 style="margin:18px 0 8px;">Recent Activity</h3>
+                    <div id="posEvents" style="font-size:.85rem;color:#444;max-height:260px;overflow:auto;background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:10px;"></div>
+                </div>
+            </div>
+
             <!-- Users Panel -->
             <div class="panel" id="usersPanel">
                 <div class="panel-header">
@@ -1067,6 +1117,55 @@
         </div>
     </div>
 
+    <style>
+        .pos-stat { background:#f5f7fa; border:1px solid #e1e6ee; border-radius:8px; padding:12px; text-align:center; }
+        .pos-stat span { display:block; font-size:1.5rem; font-weight:700; color:#002868; }
+        .pos-stat small { color:#666; }
+    </style>
+
+    <!-- POS Product Modal -->
+    <div class="modal-overlay" id="posProductModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="posProductTitle">Add Menu Item</h3>
+                <button class="modal-close" onclick="closeModal('posProductModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="posProductForm" onsubmit="return false;">
+                    <input type="hidden" id="posPId">
+                    <div class="form-group"><label>Name *</label><input type="text" id="posPName" required></div>
+                    <div class="form-group"><label>Category</label>
+                        <select id="posPCat">
+                            <option value="beer">Beer</option><option value="seltzer">Seltzer</option>
+                            <option value="wine">Wine</option><option value="liquor">Liquor</option>
+                            <option value="na">Non-Alcoholic</option><option value="food">Food</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Price ($) *</label><input type="number" id="posPPrice" step="0.25" min="0" required></div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;cursor:pointer;">
+                            <input type="checkbox" id="posPTrack" style="width:auto;margin-right:10px;" onchange="document.getElementById('posPStockWrap').style.display=this.checked?'block':'none';">
+                            <span>Track inventory</span>
+                        </label>
+                        <div id="posPStockWrap" style="display:none;margin-top:8px;">
+                            <label>Current stock</label><input type="number" id="posPStock" step="1" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;cursor:pointer;">
+                            <input type="checkbox" id="posPActive" checked style="width:auto;margin-right:10px;"><span>Active (shown on POS)</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('posProductModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="savePosProduct()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = 'https://api.somersetamericanlegion.org';
         let token = localStorage.getItem('legion_token');
@@ -1101,9 +1200,116 @@
                     loadBartenders();
                 } else if (tab.dataset.panel === 'finance') {
                     loadFinanceReport();
+                } else if (tab.dataset.panel === 'bar') {
+                    loadBar();
                 }
             });
         });
+
+        // ============ BAR / POS MANAGEMENT ============
+        let posMenuData = [];
+        function money(c) { return '$' + (c / 100).toFixed(2); }
+
+        async function loadBar() {
+            if (!document.getElementById('posFrom').value) posQuick(7);
+            else loadPosReport();
+            loadPosMenu();
+            loadPosEvents();
+        }
+        function posQuick(days) {
+            const to = new Date();
+            const from = new Date(Date.now() - days * 86400000);
+            document.getElementById('posFrom').value = from.toISOString().slice(0, 10);
+            document.getElementById('posTo').value = to.toISOString().slice(0, 10);
+            loadPosReport();
+        }
+        async function loadPosReport() {
+            const from = document.getElementById('posFrom').value, to = document.getElementById('posTo').value;
+            try {
+                const r = await api(`/api/admin/pos/report?from=${from}&to=${to}`);
+                document.getElementById('posGross').textContent = money(r.gross_sales);
+                document.getElementById('posTips').textContent = money(r.tips);
+                document.getElementById('posCollected').textContent = money(r.total_collected);
+                document.getElementById('posOrders').textContent = r.order_count;
+                document.getElementById('posByMethod').innerHTML = (r.by_method || []).map(m => `${m.method}: <strong>${money(m.total)}</strong> (${m.c})`).join('<br>') || '<span style="color:#999">No sales</span>';
+                document.getElementById('posByCat').innerHTML = (r.by_category || []).map(c => `${c.category}: <strong>${money(c.total)}</strong> (${c.qty})`).join('<br>') || '<span style="color:#999">No sales</span>';
+            } catch (e) { console.error(e); }
+        }
+        async function loadPosMenu() {
+            posMenuData = await api('/api/admin/pos/products');
+            document.querySelector('#posMenuTable tbody').innerHTML = posMenuData.map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>${p.category}</td>
+                    <td>${money(p.price)}</td>
+                    <td>${p.track_inventory ? `${p.stock_qty ?? 0} <button class="btn btn-sm" title="Restock" onclick="restockProduct(${p.id})"><i class="fas fa-plus"></i></button>` : '<span style="color:#999">—</span>'}</td>
+                    <td><span class="badge ${p.active ? 'badge-paid' : 'badge-cancelled'}">${p.active ? 'Active' : 'Hidden'}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-sm" onclick="editPosProduct(${p.id})"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deletePosProduct(${p.id})" title="Hide from POS"><i class="fas fa-eye-slash"></i></button>
+                    </td>
+                </tr>`).join('');
+        }
+        async function loadPosEvents() {
+            try {
+                const ev = await api('/api/admin/pos/events');
+                document.getElementById('posEvents').innerHTML = ev.slice(0, 60).map(e =>
+                    `<div style="padding:2px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${new Date(e.created_at + 'Z').toLocaleString()}</span> — <strong>${e.event}</strong>${e.detail ? ' · ' + e.detail : ''}${e.actor ? ' · ' + e.actor : ''}${e.order_id ? ` <span style="color:#aaa;">#${e.order_id}</span>` : ''}</div>`
+                ).join('') || '<span style="color:#999">No activity yet</span>';
+            } catch (e) {}
+        }
+        function showPosProductModal() {
+            document.getElementById('posProductTitle').textContent = 'Add Menu Item';
+            ['posPId','posPName','posPPrice','posPStock'].forEach(i => document.getElementById(i).value = '');
+            document.getElementById('posPCat').value = 'beer';
+            document.getElementById('posPActive').checked = true;
+            document.getElementById('posPTrack').checked = false;
+            document.getElementById('posPStockWrap').style.display = 'none';
+            document.getElementById('posProductModal').classList.add('active');
+        }
+        function editPosProduct(id) {
+            const p = posMenuData.find(x => x.id === id); if (!p) return;
+            document.getElementById('posProductTitle').textContent = 'Edit Menu Item';
+            document.getElementById('posPId').value = p.id;
+            document.getElementById('posPName').value = p.name;
+            document.getElementById('posPCat').value = p.category;
+            document.getElementById('posPPrice').value = (p.price / 100).toFixed(2);
+            document.getElementById('posPActive').checked = !!p.active;
+            document.getElementById('posPTrack').checked = !!p.track_inventory;
+            document.getElementById('posPStockWrap').style.display = p.track_inventory ? 'block' : 'none';
+            document.getElementById('posPStock').value = p.stock_qty ?? 0;
+            document.getElementById('posProductModal').classList.add('active');
+        }
+        async function savePosProduct() {
+            const id = document.getElementById('posPId').value;
+            const track = document.getElementById('posPTrack').checked;
+            const body = {
+                name: document.getElementById('posPName').value.trim(),
+                category: document.getElementById('posPCat').value,
+                price: Math.round(parseFloat(document.getElementById('posPPrice').value) * 100),
+                active: document.getElementById('posPActive').checked,
+                track_inventory: track,
+                stock_qty: track ? parseInt(document.getElementById('posPStock').value || '0', 10) : null,
+            };
+            if (!body.name || !Number.isFinite(body.price)) { alert('Name and price required'); return; }
+            try {
+                if (id) await api(`/api/admin/pos/products/${id}`, 'PUT', body);
+                else await api('/api/admin/pos/products', 'POST', body);
+                closeModal('posProductModal'); loadPosMenu();
+            } catch (e) { alert('Could not save: ' + e.message); }
+        }
+        async function deletePosProduct(id) {
+            if (!confirm('Hide this item from the POS?')) return;
+            await api(`/api/admin/pos/products/${id}`, 'DELETE'); loadPosMenu();
+        }
+        async function restockProduct(id) {
+            const v = prompt('Add how many to stock? (use a negative number to remove)');
+            if (v === null) return;
+            const change = parseInt(v, 10);
+            if (!change) return;
+            try { await api(`/api/admin/pos/products/${id}/stock`, 'POST', { change, reason: 'restock' }); loadPosMenu(); }
+            catch (e) { alert(e.message); }
+        }
 
         // Login form
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
