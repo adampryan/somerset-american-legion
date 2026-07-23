@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <!-- Stripe.js for the embedded Payment Element (must load from js.stripe.com) -->
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
     <div data-component="top-bar"></div>
@@ -30,7 +32,7 @@
             <article class="primary-content" style="max-width: 800px;">
             <h2>Support Our Post</h2>
             <p>Your generous donations help Somerset American Legion Post 228 continue serving our veterans and community.</p>
-            
+
             <h3>How Your Donation Helps</h3>
             <ul>
                 <li>Support programs for local veterans in need</li>
@@ -39,19 +41,70 @@
                 <li>Support community events and services</li>
                 <li>Help with veteran claims assistance</li>
             </ul>
-            
-            <h3>Ways to Give</h3>
-            
-            <div class="info-card" style="text-align: center; padding: 2rem; margin: 2rem 0;">
-                <div class="card-icon"><i class="fas fa-hand-holding-heart"></i></div>
-                <h3>Make a Donation</h3>
-                <p>Contact us to make a donation by check or in person.</p>
-                <p><strong>Somerset American Legion Post 228</strong><br>55 Roosevelt Avenue<br>Somerset, MA 02726</p>
+
+            <!-- Inline status banner (success / cancelled / errors) -->
+            <div id="donate-status" style="display:none; margin: 1.5rem 0; padding: 1rem; border-radius: 4px;"></div>
+
+            <h3>Make a Secure Online Donation</h3>
+            <div class="info-card" style="padding: 2rem; margin: 1.5rem 0;">
+
+                <!-- STEP 1: amount + details -->
+                <form id="details-form" class="contact-form">
+                    <div class="form-group">
+                        <label>Choose an amount</label>
+                        <div class="donate-amounts" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                            <button type="button" class="btn btn-outline amount-btn" data-amount="25" style="color:var(--navy); border-color:var(--navy);">$25</button>
+                            <button type="button" class="btn btn-outline amount-btn" data-amount="50" style="color:var(--navy); border-color:var(--navy);">$50</button>
+                            <button type="button" class="btn btn-outline amount-btn" data-amount="100" style="color:var(--navy); border-color:var(--navy);">$100</button>
+                            <button type="button" class="btn btn-outline amount-btn" data-amount="250" style="color:var(--navy); border-color:var(--navy);">$250</button>
+                        </div>
+                        <label for="amount">Or enter an amount (USD) *</label>
+                        <input type="number" id="amount" name="amount" min="5" step="1" placeholder="Amount in dollars" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fund">Designate my gift to: (optional)</label>
+                        <select id="fund" name="fund">
+                            <option value="general">Where it's needed most</option>
+                            <option value="veterans">Veterans Relief</option>
+                            <option value="baseball">Legion Baseball</option>
+                            <option value="building">Building Fund</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="name">Your Name (optional)</label>
+                        <input type="text" id="name" name="name">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email (optional &mdash; for your receipt)</label>
+                        <input type="email" id="email" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="message">Message (optional)</label>
+                        <textarea id="message" name="message" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="details-btn">Continue to Payment</button>
+                </form>
+
+                <!-- STEP 2: embedded card form (revealed after step 1) -->
+                <div id="payment-section" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid #e5e7eb;">
+                        <div>Donating <strong id="summary-amount"></strong> <span id="summary-fund" style="color:#6c757d;"></span></div>
+                        <button type="button" id="edit-btn" class="btn btn-outline" style="padding:0.35rem 0.9rem; color:var(--navy); border-color:var(--navy);"><i class="fas fa-pen"></i> Edit</button>
+                    </div>
+                    <form id="payment-form">
+                        <div id="payment-element"><!-- Stripe Payment Element mounts here --></div>
+                        <button type="submit" class="btn btn-primary" id="pay-btn" style="margin-top:1.25rem; width:100%;"><i class="fas fa-lock"></i> <span id="pay-btn-text">Donate</span></button>
+                        <div id="pay-error" style="margin-top:1rem; display:none; color:#721c24;"></div>
+                    </form>
+                </div>
+
+                <p style="margin-top:1rem; font-size:0.85rem; color:#6c757d;"><i class="fas fa-shield-halved"></i> Payments are processed securely by Stripe. Your card details are entered directly on this page and never touch our servers.</p>
             </div>
-            
+
+            <p>Prefer to give by check or in person?</p>
+            <p><strong>Somerset American Legion Post 228</strong><br>55 Roosevelt Avenue<br>Somerset, MA 02726</p>
+
             <p>Somerset American Legion Post 228 is a 501(c)(19) veterans organization. Donations may be tax-deductible.</p>
-            
-            <a href="contact.html" class="btn btn-primary">Contact Us to Donate</a>
         </article>
         </div>
     </main>
@@ -59,5 +112,149 @@
     <div data-component="footer"></div>
     <script src="js/components.js"></script>
     <script src="js/main.js"></script>
+    <script>
+    (function() {
+        const API_URL = 'https://api.somersetamericanlegion.org';
+        // Publishable key is safe to expose in front-end code.
+        const STRIPE_PK = 'pk_test_51TwB389ny6NMeRIFnulKC2aMWEq9MCJESmNvodq91aR6gKq6s75DGhYywWXyjWuJbH6z5W0JuC8irY2cZrLpeUFh00Z9fFalQM';
+
+        const detailsForm = document.getElementById('details-form');
+        const detailsBtn = document.getElementById('details-btn');
+        const amountInput = document.getElementById('amount');
+        const fundSelect = document.getElementById('fund');
+        const paymentSection = document.getElementById('payment-section');
+        const paymentForm = document.getElementById('payment-form');
+        const payBtn = document.getElementById('pay-btn');
+        const payBtnText = document.getElementById('pay-btn-text');
+        const payError = document.getElementById('pay-error');
+        const editBtn = document.getElementById('edit-btn');
+        const statusDiv = document.getElementById('donate-status');
+        const FUND_LABELS = { general: '', veterans: 'to Veterans Relief', baseball: 'to Legion Baseball', building: 'to the Building Fund' };
+
+        let stripe = null, elements = null, paymentElement = null;
+        if (window.Stripe) stripe = Stripe(STRIPE_PK);
+
+        function showStatus(html, kind) {
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = kind === 'error' ? '#f8d7da' : kind === 'warn' ? '#fff3cd' : '#d4edda';
+            statusDiv.style.color = kind === 'error' ? '#721c24' : kind === 'warn' ? '#856404' : '#155724';
+            statusDiv.innerHTML = html;
+            statusDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Preset amount buttons.
+        document.querySelectorAll('.amount-btn').forEach((b) => {
+            b.addEventListener('click', () => {
+                amountInput.value = b.dataset.amount;
+                document.querySelectorAll('.amount-btn').forEach((x) => x.classList.remove('btn-primary'));
+                b.classList.add('btn-primary');
+            });
+        });
+
+        // STEP 1 -> create PaymentIntent, then mount the embedded Payment Element.
+        detailsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            statusDiv.style.display = 'none';
+            const amount = Number(amountInput.value);
+            if (!amount || amount < 5) { showStatus('Please enter a donation amount of at least $5.', 'error'); return; }
+            if (!stripe) { showStatus('Payment library failed to load. Please refresh and try again.', 'error'); return; }
+
+            detailsBtn.disabled = true;
+            detailsBtn.textContent = 'Preparing secure payment...';
+            try {
+                const res = await fetch(`${API_URL}/api/donations/payment-intent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount,
+                        fund: fundSelect.value,
+                        name: document.getElementById('name').value.trim(),
+                        email: document.getElementById('email').value.trim(),
+                        message: document.getElementById('message').value.trim(),
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok || !data.clientSecret) {
+                    showStatus(data.error || 'Something went wrong. Please try again.', 'error');
+                    detailsBtn.disabled = false; detailsBtn.textContent = 'Continue to Payment';
+                    return;
+                }
+
+                // Build the embedded Payment Element, themed to match the site.
+                elements = stripe.elements({
+                    clientSecret: data.clientSecret,
+                    appearance: { theme: 'stripe', variables: { colorPrimary: '#002868', fontFamily: 'Source Sans 3, sans-serif', borderRadius: '4px' } },
+                });
+                paymentElement = elements.create('payment');
+                paymentElement.mount('#payment-element');
+
+                document.getElementById('summary-amount').textContent = '$' + amount.toFixed(2);
+                document.getElementById('summary-fund').textContent = FUND_LABELS[fundSelect.value] || '';
+                payBtnText.textContent = 'Donate $' + amount.toFixed(2);
+
+                detailsForm.style.display = 'none';
+                paymentSection.style.display = 'block';
+                paymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (err) {
+                console.error('payment-intent error:', err);
+                showStatus('Failed to connect. Please try again later.', 'error');
+                detailsBtn.disabled = false; detailsBtn.textContent = 'Continue to Payment';
+            }
+        });
+
+        // Edit -> go back to step 1 (a fresh PaymentIntent is created on the next Continue).
+        editBtn.addEventListener('click', () => {
+            if (paymentElement) { paymentElement.unmount(); paymentElement = null; }
+            elements = null;
+            paymentSection.style.display = 'none';
+            payError.style.display = 'none';
+            detailsForm.style.display = 'block';
+            detailsBtn.disabled = false;
+            detailsBtn.textContent = 'Continue to Payment';
+        });
+
+        // STEP 2 -> confirm the payment inline (redirect: 'if_required' keeps the donor here).
+        paymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            payError.style.display = 'none';
+            payBtn.disabled = true;
+            const original = payBtnText.textContent;
+            payBtnText.textContent = 'Processing...';
+
+            const { error, paymentIntent } = await stripe.confirmPayment({
+                elements,
+                confirmParams: { return_url: 'https://www.somersetamericanlegion.org/donate.html?status=success' },
+                redirect: 'if_required',
+            });
+
+            if (error) {
+                payError.textContent = error.message || 'Payment could not be completed. Please check your card details and try again.';
+                payError.style.display = 'block';
+                payBtn.disabled = false;
+                payBtnText.textContent = original;
+                return;
+            }
+            if (paymentIntent && paymentIntent.status === 'succeeded') {
+                document.querySelector('.info-card').style.display = 'none';
+                showStatus('<strong>Thank you for your donation!</strong> Your support means the world to Post 228. A receipt has been emailed to you if you provided an email address.', 'success');
+            } else {
+                showStatus('Your payment is processing. We’ll email your receipt once it completes.', 'warn');
+            }
+        });
+
+        // If we returned here via a redirect-based method, reflect the outcome.
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('status') === 'success' && stripe && params.get('payment_intent_client_secret')) {
+            stripe.retrievePaymentIntent(params.get('payment_intent_client_secret')).then(({ paymentIntent }) => {
+                if (paymentIntent && paymentIntent.status === 'succeeded') {
+                    document.querySelector('.info-card').style.display = 'none';
+                    showStatus('<strong>Thank you for your donation!</strong> Your support means the world to Post 228.', 'success');
+                }
+            });
+        } else if (params.get('status') === 'cancelled') {
+            showStatus('Your donation was cancelled. No payment was made.', 'warn');
+        }
+    })();
+    </script>
 </body>
 </html>
