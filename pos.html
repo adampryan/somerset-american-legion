@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260723-1"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260723-2"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -229,38 +229,23 @@
       }catch(e){ if(e.message!=='empty') toast(e.message); }
     }
 
-    // Cash: optional tip screen, then record the payment.
+    // Cash: simple confirm and record (no tip — cash tips go in the jar).
     function cashModal(id){
       const base = splitWays>1 ? Math.ceil(subtotal()/splitWays) : subtotal();
-      let tipC=0;
-      modal(`<div class="modal" style="text-align:left;">
-        <h2 style="text-align:center;">Cash Payment</h2>
-        <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Subtotal</span><strong>${money(base)}</strong></div>
-        <p style="margin:10px 0 4px;font-weight:600;">Add a tip? (optional)</p>
-        <div class="tips" id="cTips"></div>
-        <input type="number" id="cCustom" placeholder="Custom tip ($)" min="0" step="0.50" style="display:none;width:100%;padding:9px;margin-top:8px;border:1px solid #ccc;border-radius:8px;">
-        <div style="display:flex;justify-content:space-between;padding:4px 0;margin-top:6px;"><span>Tip</span><strong id="cTip">$0.00</strong></div>
-        <div style="display:flex;justify-content:space-between;border-top:2px solid var(--navy);padding-top:8px;margin-top:4px;font-size:1.35rem;color:var(--navy);"><strong>Total</strong><strong id="cTotal">${money(base)}</strong></div>
+      modal(`<div class="modal">
+        <h2>Cash Payment</h2>
+        <div style="font-size:2.2rem;color:var(--navy);font-weight:700;margin:14px 0;">${money(base)}</div>
         <button class="btn primary" id="cpay" style="background:#2e7d32;">Record ${money(base)} Cash</button>
         <button class="btn ghost" onclick="window._close()">Cancel</button>
         <div class="err" id="cerr"></div>
       </div>`);
-      const opts=[['No tip',0],['15%',.15],['18%',.18],['20%',.20],['$',null]];
-      $('cTips').innerHTML=opts.map(o=>`<button type="button" data-pct="${o[1]}" class="${o[1]===0?'sel':''}">${o[0]}</button>`).join('');
-      const setTip=c=>{ tipC=c; $('cTip').textContent=money(c); $('cTotal').textContent=money(base+c); $('cpay').textContent='Record '+money(base+c)+' Cash'; };
-      $('cTips').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
-        $('cTips').querySelectorAll('button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
-        if(b.dataset.pct==='null'){ $('cCustom').style.display='block'; $('cCustom').focus(); }
-        else { $('cCustom').style.display='none'; setTip(Math.round(base*parseFloat(b.dataset.pct))); }
-      }));
-      $('cCustom').addEventListener('input',()=>setTip(Math.max(0,Math.round((parseFloat($('cCustom').value)||0)*100))));
       $('cpay').addEventListener('click',async()=>{
         $('cpay').disabled=true;
         try{
           const amount = splitWays>1 ? base : undefined;
-          const r=await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify({method:'cash',tip:tipC,...(amount?{amount}:{})})});
+          const r=await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify({method:'cash',tip:0,...(amount?{amount}:{})})});
           const j=await r.json(); if(!r.ok)throw new Error(j.error||'charge failed');
-          modal(`<div class="modal"><div class="big">✅</div><h2>Cash Recorded</h2><p>${money(base+tipC)}</p><button class="btn primary" onclick="window._next()">New Order</button></div>`);
+          modal(`<div class="modal"><div class="big">✅</div><h2>Cash Recorded</h2><p>${money(base)}</p><button class="btn primary" onclick="window._next()">New Order</button></div>`);
           poll(id);
         }catch(e){ $('cerr').textContent=e.message; $('cerr').style.display='block'; $('cpay').disabled=false; }
       });
