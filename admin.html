@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260723-2"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260723-3"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -743,9 +743,9 @@
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px;">
                         <div class="card-box"><h3><i class="fas fa-trophy"></i> Top Sellers <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posTop" style="max-height:240px;overflow:auto;"></div></div>
-                        <div class="card-box"><h3><i class="fas fa-layer-group"></i> By Category</h3><div id="posByCat"></div></div>
-                        <div class="card-box"><h3><i class="fas fa-credit-card"></i> By Payment Method</h3><div id="posByMethod"></div></div>
-                        <div class="card-box"><h3><i class="fas fa-calendar-day"></i> Sales by Day</h3><div id="posByDay" style="max-height:230px;overflow:auto;"></div></div>
+                        <div class="card-box"><h3><i class="fas fa-layer-group"></i> By Category <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posByCat"></div></div>
+                        <div class="card-box"><h3><i class="fas fa-credit-card"></i> By Payment Method <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posByMethod"></div></div>
+                        <div class="card-box"><h3><i class="fas fa-calendar-day"></i> Sales by Day <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posByDay" style="max-height:230px;overflow:auto;"></div></div>
                     </div>
                     <h3 style="margin:18px 0 8px;">Recent Activity</h3>
                     <div id="posEvents" style="font-size:.85rem;color:#444;max-height:240px;overflow:auto;background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:10px;"></div>
@@ -1156,6 +1156,7 @@
         .bar-row .val { width:80px; text-align:right; font-weight:600; color:#002868; }
         .bar-row.clickable { cursor:pointer; border-radius:4px; padding:2px 4px; margin-left:-4px; margin-right:-4px; }
         .bar-row.clickable:hover { background:#eef4ff; }
+        .day-row:hover { background:#eef4ff; }
         .low-badge { background:#f8d7da; color:#721c24; padding:1px 6px; border-radius:4px; font-size:.75rem; margin-left:6px; }
     </style>
 
@@ -1287,27 +1288,37 @@
         function money(c) { return '$' + (c / 100).toFixed(2); }
         function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
-        // Drill-down: every individual sale of one item (when, qty, amount, payment type).
-        async function drillItem(name) {
+        // Clickable proportion bars that drill into a dimension (item / category / method).
+        function renderBars(elId, rows, dim) {
+            const el = document.getElementById(elId);
+            if (!rows.length) { el.innerHTML = '<span style="color:#999">No sales in range</span>'; return; }
+            const max = Math.max(...rows.map(r => r.value), 1);
+            el.innerHTML = rows.map(r => `<div class="bar-row clickable" data-key="${esc(r.key)}" title="Click for detail"><span class="lbl" title="${esc(r.label)}">${r.label}</span><span class="track"><span class="fill" style="width:${Math.max(3, Math.round(r.value / max * 100))}%"></span></span><span class="val">${r.extra}</span></div>`).join('');
+            el.querySelectorAll('.bar-row.clickable').forEach(x => x.addEventListener('click', () => openDrill(dim, x.dataset.key)));
+        }
+
+        // Unified drill-down: item / category / method / day → the individual sales.
+        async function openDrill(dim, key) {
             const from = document.getElementById('posFrom').value, to = document.getElementById('posTo').value;
-            document.getElementById('drillTitle').textContent = name + ' — sales';
+            const badge = m => (m || '').split(',').filter(Boolean).map(x => `<span class="badge badge-approved">${x.toUpperCase()}</span>`).join(' ') || '—';
+            const dt = t => new Date(t + 'Z').toLocaleString();
+            const cap = s => String(s).charAt(0).toUpperCase() + String(s).slice(1);
+            const cfg = {
+                item: { title: `${key} — sales`, sum: d => `${d.summary.qty} sold &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} sale(s)`, headers: ['When', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.qty, money(s.line_total), badge(s.methods), '#' + s.order_id] },
+                category: { title: `${cap(key)} — category sales`, sum: d => `${d.summary.qty} items &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} line(s)`, headers: ['When', 'Item', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.item, s.qty, money(s.line_total), badge(s.methods), '#' + s.order_id] },
+                method: { title: `${String(key).toUpperCase()} — payments`, sum: d => `${d.summary.count} payment(s) &middot; <strong>${money(d.summary.revenue)}</strong> collected`, headers: ['When', 'Order', 'Amount', 'Tip', 'Total'], row: s => [dt(s.paid_at), '#' + s.order_id, money(s.amount), money(s.tip), money(s.amount + s.tip)] },
+                day: { title: `${key} — orders`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${money(d.summary.tips)} tips`, headers: ['Time', 'Order', 'Items', 'Total', 'Payment'], row: s => [dt(s.paid_at), '#' + s.order_id, s.item_count, money(s.subtotal + s.tip), badge(s.methods)] },
+            }[dim];
+            document.getElementById('drillTitle').innerHTML = cfg.title;
             document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
             document.getElementById('itemDrillModal').classList.add('active');
             try {
-                const d = await api(`/api/admin/pos/item-sales?name=${encodeURIComponent(name)}&from=${from}&to=${to}`);
-                const methodBadge = m => (m || '').split(',').filter(Boolean).map(x => `<span class="badge badge-approved">${x.toUpperCase()}</span>`).join(' ') || '—';
-                document.getElementById('drillBody').innerHTML = `
-                    <p style="margin:0 0 12px;color:#555;">${d.from} to ${d.to} &middot; <strong>${d.total_qty}</strong> sold &middot; <strong>${money(d.total_revenue)}</strong> revenue &middot; ${d.count} sale(s)</p>
-                    ${d.sales.length ? `<div class="table-wrapper"><table>
-                        <thead><tr><th>When</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Amount</th><th>Payment</th><th>Order</th></tr></thead>
-                        <tbody>${d.sales.map(s => `<tr>
-                            <td>${new Date(s.paid_at + 'Z').toLocaleString()}</td>
-                            <td style="text-align:right;">${s.qty}</td>
-                            <td style="text-align:right;">${money(s.line_total)}</td>
-                            <td>${methodBadge(s.methods)}</td>
-                            <td style="color:#888;">#${s.order_id}</td>
-                        </tr>`).join('')}</tbody></table></div>`
-                    : '<p style="color:#999;">No sales of this item in the selected range.</p>'}`;
+                const d = await api(`/api/admin/pos/drill?dim=${dim}&key=${encodeURIComponent(key)}&from=${from}&to=${to}`);
+                const rightCols = new Set(['Qty', 'Amount', 'Tip', 'Total', 'Items']);
+                const al = cfg.headers.map(h => rightCols.has(h) ? 'right' : 'left');
+                const thead = cfg.headers.map((h, i) => `<th style="text-align:${al[i]};">${h}</th>`).join('');
+                const tbody = (d.sales || []).map(s => '<tr>' + cfg.row(s).map((c, i) => `<td style="text-align:${al[i]};">${c}</td>`).join('') + '</tr>').join('');
+                document.getElementById('drillBody').innerHTML = `<p style="margin:0 0 12px;color:#555;">${cfg.sum(d)}</p>${(d.sales || []).length ? `<div class="table-wrapper"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>` : '<p style="color:#999;">No sales in the selected range.</p>'}`;
             } catch (e) { document.getElementById('drillBody').innerHTML = '<p style="color:#a00;">Could not load: ' + e.message + '</p>'; }
         }
 
@@ -1328,12 +1339,6 @@
             document.getElementById('posTo').value = to.toISOString().slice(0, 10);
             loadPosReport();
         }
-        // Horizontal proportion bars: rows of [{label, value(cents or count), sub?}]
-        function barChart(rows, fmt) {
-            if (!rows.length) return '<span style="color:#999">No sales in range</span>';
-            const max = Math.max(...rows.map(r => r.value)) || 1;
-            return rows.map(r => `<div class="bar-row"><span class="lbl" title="${r.label}">${r.label}</span><span class="track"><span class="fill" style="width:${Math.max(3, Math.round(r.value / max * 100))}%"></span></span><span class="val">${fmt(r)}</span></div>`).join('');
-        }
         async function loadPosReport() {
             const from = document.getElementById('posFrom').value, to = document.getElementById('posTo').value;
             try {
@@ -1345,22 +1350,15 @@
                 document.getElementById('posOrders').textContent = r.order_count;
                 document.getElementById('posAvg').textContent = money(r.avg_order || 0);
                 document.getElementById('posItems').textContent = r.items_sold || 0;
-                const topRows = r.top_items || [];
-                const maxTop = Math.max(...topRows.map(i => i.total), 1);
-                const posTop = document.getElementById('posTop');
-                posTop.innerHTML = topRows.length
-                    ? topRows.map(i => `<div class="bar-row clickable" data-name="${esc(i.name)}" title="Click for sale details"><span class="lbl">${i.name}</span><span class="track"><span class="fill" style="width:${Math.max(3, Math.round(i.total / maxTop * 100))}%"></span></span><span class="val">${money(i.total)} · ${i.qty}</span></div>`).join('')
+                renderBars('posTop', (r.top_items || []).map(i => ({ key: i.name, label: i.name, value: i.total, extra: `${money(i.total)} · ${i.qty}` })), 'item');
+                renderBars('posByCat', (r.by_category || []).map(c => ({ key: c.category, label: c.category, value: c.total, extra: `${money(c.total)} · ${c.qty}` })), 'category');
+                renderBars('posByMethod', (r.by_method || []).map(m => ({ key: m.method, label: m.method.toUpperCase(), value: m.total, extra: `${money(m.total)} · ${m.c}` })), 'method');
+                const days = r.by_day || [];
+                const byDayEl = document.getElementById('posByDay');
+                byDayEl.innerHTML = days.length
+                    ? `<table style="width:100%;font-size:.85rem;"><thead><tr><th style="text-align:left;">Day</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Gross</th><th style="text-align:right;">Tips</th></tr></thead><tbody>${days.map(d => `<tr class="day-row" data-day="${d.day}" style="cursor:pointer;"><td>${d.day}</td><td style="text-align:right;">${d.orders}</td><td style="text-align:right;">${money(d.gross)}</td><td style="text-align:right;">${money(d.tips)}</td></tr>`).join('')}</tbody></table>`
                     : '<span style="color:#999">No sales in range</span>';
-                posTop.querySelectorAll('.bar-row.clickable').forEach(el => el.addEventListener('click', () => drillItem(el.dataset.name)));
-                document.getElementById('posByCat').innerHTML = barChart(
-                    (r.by_category || []).map(c => ({ label: c.category, value: c.total, qty: c.qty })),
-                    c => `${money(c.value)} · ${c.qty}`);
-                document.getElementById('posByMethod').innerHTML = barChart(
-                    (r.by_method || []).map(m => ({ label: m.method.toUpperCase(), value: m.total, c: m.c })),
-                    m => `${money(m.value)} · ${m.c}`);
-                document.getElementById('posByDay').innerHTML = (r.by_day || []).length
-                    ? `<table style="width:100%;font-size:.85rem;"><thead><tr><th style="text-align:left;">Day</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Gross</th><th style="text-align:right;">Tips</th></tr></thead><tbody>${r.by_day.map(d => `<tr><td>${d.day}</td><td style="text-align:right;">${d.orders}</td><td style="text-align:right;">${money(d.gross)}</td><td style="text-align:right;">${money(d.tips)}</td></tr>`).join('')}</tbody></table>`
-                    : '<span style="color:#999">No sales in range</span>';
+                byDayEl.querySelectorAll('.day-row').forEach(el => el.addEventListener('click', () => openDrill('day', el.dataset.day)));
             } catch (e) { console.error(e); }
         }
         function exportPosCsv() {
