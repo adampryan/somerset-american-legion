@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260723-6"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260723-7"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -571,10 +571,13 @@
             <button class="tab" data-panel="pos">
                 <i class="fas fa-cash-register"></i> POS
             </button>
+            <button class="tab" data-panel="tipout" data-perm="tipout">
+                <i class="fas fa-hand-holding-dollar"></i> Tip-Out
+            </button>
             <button class="tab" data-panel="bar" data-perm="bar">
                 <i class="fas fa-chart-line"></i> Bar Sales
             </button>
-            <button class="tab" data-panel="inventory" data-perm="bar">
+            <button class="tab" data-panel="inventory" data-perm="inventory">
                 <i class="fas fa-boxes-stacked"></i> Inventory
             </button>
             <button class="tab" data-panel="subscribers">
@@ -714,6 +717,29 @@
             <!-- POS Register Panel (embeds the bartender POS, uses this login) -->
             <div class="panel" id="posPanel" style="padding:0;">
                 <iframe id="posFrame" title="Bar POS Register" style="width:100%;height:calc(100vh - 130px);min-height:560px;border:none;display:block;"></iframe>
+            </div>
+
+            <!-- Tip-Out Panel (daily sales + tip-out; officers & bartenders) -->
+            <div class="panel" id="tipoutPanel">
+                <div class="panel-header">
+                    <h2>Tip-Out</h2>
+                    <input type="date" id="tipoutDay" onchange="loadTipout()" style="padding:6px;">
+                </div>
+                <div class="panel-body">
+                    <div id="tipoutSummary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:520px;margin-bottom:18px;">
+                        <div class="pos-stat"><span id="toGross">$0</span><small>Sales</small></div>
+                        <div class="pos-stat"><span id="toTips">$0</span><small>Tips</small></div>
+                        <div class="pos-stat"><span id="toOrders">0</span><small>Orders</small></div>
+                    </div>
+                    <h3 style="margin:0 0 8px;">Tips by Bartender</h3>
+                    <div class="table-wrapper" style="max-width:640px;">
+                        <table id="tipoutTable">
+                            <thead><tr><th>Bartender</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Sales</th><th style="text-align:right;">Tips</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <p style="color:#888;font-size:.85rem;margin-top:10px;">Card &amp; QR tips are collected through Stripe; cash tips go in the jar.</p>
+                </div>
             </div>
 
             <!-- Bar Sales Panel -->
@@ -929,16 +955,18 @@
                         <input type="password" id="newUserPassword" autocomplete="new-password">
                     </div>
                     <div class="form-group">
-                        <label for="newUserRole">Role</label>
-                        <select id="newUserRole" onchange="togglePermUI()">
-                            <option value="officer">Officer / Staff (choose pages below)</option>
-                            <option value="webmaster">Webmaster (full access)</option>
+                        <label for="newUserRole">Access level</label>
+                        <select id="newUserRole" onchange="applyAccessPreset()">
+                            <option value="bartender">Bartender — POS + Tip-Out only</option>
+                            <option value="officer">Officer — bar &amp; office pages (no Finance / Users / Bar Sales)</option>
+                            <option value="webmaster">Webmaster — full access</option>
+                            <option value="custom">Custom — choose exact pages</option>
                         </select>
                     </div>
                     <div class="form-group" id="permGroup">
                         <label>Page access</label>
                         <div id="permChecks" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;"></div>
-                        <small style="color:#666;display:block;margin-top:6px;">A bartender typically needs <strong>POS</strong>, <strong>Bartenders</strong>, and <strong>Bar Shifts</strong>.</small>
+                        <small style="color:#666;display:block;margin-top:6px;">Presets pre-check the boxes; switch to <strong>Custom</strong> to fine-tune.</small>
                     </div>
                 </form>
             </div>
@@ -1256,6 +1284,8 @@
                     loadBar();
                 } else if (tab.dataset.panel === 'inventory') {
                     loadInventory();
+                } else if (tab.dataset.panel === 'tipout') {
+                    loadTipout();
                 } else if (tab.dataset.panel === 'pos') {
                     const f = document.getElementById('posFrame');
                     if (!f.getAttribute('src')) f.src = 'pos.html';
@@ -1374,6 +1404,20 @@
         async function loadInventory() {
             loadPosMenu();
             loadInventoryLog();
+        }
+        async function loadTipout() {
+            const dayEl = document.getElementById('tipoutDay');
+            if (!dayEl.value) dayEl.value = new Date().toISOString().slice(0, 10);
+            try {
+                const d = await api(`/api/admin/pos/tipout?day=${dayEl.value}`);
+                document.getElementById('toGross').textContent = money(d.gross);
+                document.getElementById('toTips').textContent = money(d.tips);
+                document.getElementById('toOrders').textContent = d.order_count;
+                const me = currentUser && currentUser.name;
+                document.querySelector('#tipoutTable tbody').innerHTML = (d.by_bartender || []).map(x =>
+                    `<tr${x.name === me ? ' style="background:#eef4ff;font-weight:600;"' : ''}><td>${x.name}${x.name === me ? ' (you)' : ''}</td><td style="text-align:right;">${x.orders}</td><td style="text-align:right;">${money(x.gross)}</td><td style="text-align:right;">${money(x.tips)}</td></tr>`
+                ).join('') || '<tr><td colspan="4" style="color:#999;">No sales this day.</td></tr>';
+            } catch (e) { console.error(e); }
         }
         function posQuick(days) {
             const to = new Date();
@@ -1801,8 +1845,11 @@
 
         const PERM_LABELS = {
             rentals: 'Rentals', shifts: 'Bar Shifts', bartenders: 'Bartenders', events: 'Events',
-            pos: 'POS (Register)', bar: 'Bar Sales', subscribers: 'Subscribers', users: 'Users', finance: 'Finance'
+            subscribers: 'Subscribers', pos: 'POS (Register)', tipout: 'Tip-Out (daily)',
+            inventory: 'Inventory', bar: 'Bar Sales (full analytics)', users: 'Users', finance: 'Finance'
         };
+        const OFFICER_PRESET = ['rentals', 'shifts', 'bartenders', 'events', 'subscribers', 'inventory', 'pos', 'tipout'];
+        const BARTENDER_PRESET = ['pos', 'tipout'];
         let usersData = [];
 
         function renderPermChecks(selected) {
@@ -1812,18 +1859,33 @@
                     <input type="checkbox" class="perm-check" value="${k}" ${sel.has(k) ? 'checked' : ''} style="width:auto;margin-right:8px;"> ${label}
                 </label>`).join('');
         }
-        function togglePermUI() {
-            document.getElementById('permGroup').style.display =
-                document.getElementById('newUserRole').value === 'webmaster' ? 'none' : 'block';
+        // Access-level presets pre-check the page boxes; Custom leaves them for manual editing.
+        function applyAccessPreset() {
+            const lvl = document.getElementById('newUserRole').value;
+            const grp = document.getElementById('permGroup');
+            if (lvl === 'webmaster') { grp.style.display = 'none'; return; }
+            grp.style.display = 'block';
+            if (lvl === 'officer') renderPermChecks(OFFICER_PRESET);
+            else if (lvl === 'bartender') renderPermChecks(BARTENDER_PRESET);
+            // 'custom' leaves the current checkboxes as-is
+        }
+        function detectLevel(u) {
+            if (u.role === 'webmaster') return 'webmaster';
+            const p = (u.permissions || []).slice().sort().join(',');
+            if (p === BARTENDER_PRESET.slice().sort().join(',')) return 'bartender';
+            if (p === OFFICER_PRESET.slice().sort().join(',')) return 'officer';
+            return 'custom';
         }
 
         async function loadUsers() {
             usersData = await api('/api/admin/users');
             const tbody = document.querySelector('#usersTable tbody');
             tbody.innerHTML = usersData.map(u => {
+                const lvl = detectLevel(u);
+                const lvlLabel = { webmaster: 'Webmaster', officer: 'Officer', bartender: 'Bartender', custom: 'Custom' }[lvl];
                 const permSummary = u.role === 'webmaster'
-                    ? '<span class="badge badge-approved">All access</span>'
-                    : (u.permissions || []).map(p => PERM_LABELS[p] || p).join(', ') || '<span style="color:#999">None</span>';
+                    ? '<span class="badge badge-approved">Webmaster · all access</span>'
+                    : `<span class="badge badge-approved">${lvlLabel}</span> ${(u.permissions || []).map(p => PERM_LABELS[p] || p).join(', ') || '<span style="color:#999">None</span>'}`;
                 return `
                 <tr>
                     <td>${u.name}</td>
@@ -2457,9 +2519,8 @@
             document.getElementById('newUserPassword').value = '';
             document.getElementById('newUserPassword').required = true;
             document.getElementById('userPwLabel').textContent = 'Password';
-            document.getElementById('newUserRole').value = 'officer';
-            renderPermChecks([]);
-            togglePermUI();
+            document.getElementById('newUserRole').value = 'bartender';
+            applyAccessPreset();
             document.getElementById('userModal').classList.add('active');
         }
 
@@ -2476,15 +2537,17 @@
             document.getElementById('newUserPassword').value = '';
             document.getElementById('newUserPassword').required = false;
             document.getElementById('userPwLabel').textContent = 'New password (leave blank to keep)';
-            document.getElementById('newUserRole').value = u.role === 'webmaster' ? 'webmaster' : 'officer';
+            const lvl = detectLevel(u);
+            document.getElementById('newUserRole').value = lvl;
             renderPermChecks(u.role === 'webmaster' ? [] : (u.permissions || []));
-            togglePermUI();
+            document.getElementById('permGroup').style.display = lvl === 'webmaster' ? 'none' : 'block';
             document.getElementById('userModal').classList.add('active');
         }
 
         async function saveUser() {
             const id = document.getElementById('userId').value;
-            const role = document.getElementById('newUserRole').value;
+            const level = document.getElementById('newUserRole').value;
+            const role = level === 'webmaster' ? 'webmaster' : 'officer';
             const permissions = [...document.querySelectorAll('.perm-check:checked')].map(c => c.value);
             const password = document.getElementById('newUserPassword').value;
             try {
