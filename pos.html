@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260723-3"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260723-4"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -180,6 +180,13 @@
     }
     // Currently selected bartender (roster) for attribution.
     function serverInfo(){ const sel=$('server'); const opt=sel.options[sel.selectedIndex]; return { server_id: sel.value?parseInt(sel.value,10):null, server_name:(sel.value&&opt)?opt.text:null }; }
+    // A bartender must be selected before an order is created/charged.
+    function requireServer(){
+      if(serverInfo().server_id) return true;
+      toast('Select a bartender first');
+      const s=$('server'); s.focus(); s.style.outline='3px solid #b22234'; setTimeout(()=>s.style.outline='',1600);
+      return false;
+    }
 
     // ---------- menu ----------
     async function loadMenu(){
@@ -228,6 +235,7 @@
     async function charge(method){
       try{
         if(!cart.length){ toast('Cart is empty'); return; }
+        if(!orderId && !requireServer()) return;   // new order needs a bartender
         const id=await ensureOrder();
         if(method==='cash') return cashModal(id);           // cash tip on its own screen
         const sub=subtotal();
@@ -344,6 +352,7 @@
         if(r.ok){ toast('Tab updated'); resetOrder(); refreshTabs(); }
       } else {
         if(!items.length){ toast('Cart is empty'); return; }
+        if(!requireServer()) return;
         const label=prompt('Tab name (customer):'); if(label===null)return;
         const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items,label,...serverInfo()})});
         if(r.ok){ toast('Tab saved'); resetOrder(); refreshTabs(); }
