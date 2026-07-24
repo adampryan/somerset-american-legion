@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260723-3"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260723-4"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1157,6 +1157,8 @@
         .bar-row.clickable { cursor:pointer; border-radius:4px; padding:2px 4px; margin-left:-4px; margin-right:-4px; }
         .bar-row.clickable:hover { background:#eef4ff; }
         .day-row:hover { background:#eef4ff; }
+        .order-link { cursor:pointer; color:#002868; text-decoration:underline; font-weight:600; }
+        .ev-row.clickable:hover { background:#eef4ff; }
         .low-badge { background:#f8d7da; color:#721c24; padding:1px 6px; border-radius:4px; font-size:.75rem; margin-left:6px; }
     </style>
 
@@ -1298,16 +1300,22 @@
         }
 
         // Unified drill-down: item / category / method / day → the individual sales.
+        let lastDrill = null;
+        const olink = id => `<span class="order-link" data-order="${id}">#${id}</span>`;
+        function wireOrderLinks() {
+            document.querySelectorAll('#drillBody .order-link').forEach(el => el.addEventListener('click', () => openOrder(el.dataset.order)));
+        }
         async function openDrill(dim, key) {
+            lastDrill = { dim, key };
             const from = document.getElementById('posFrom').value, to = document.getElementById('posTo').value;
             const badge = m => (m || '').split(',').filter(Boolean).map(x => `<span class="badge badge-approved">${x.toUpperCase()}</span>`).join(' ') || '—';
             const dt = t => new Date(t + 'Z').toLocaleString();
             const cap = s => String(s).charAt(0).toUpperCase() + String(s).slice(1);
             const cfg = {
-                item: { title: `${key} — sales`, sum: d => `${d.summary.qty} sold &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} sale(s)`, headers: ['When', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.qty, money(s.line_total), badge(s.methods), '#' + s.order_id] },
-                category: { title: `${cap(key)} — category sales`, sum: d => `${d.summary.qty} items &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} line(s)`, headers: ['When', 'Item', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.item, s.qty, money(s.line_total), badge(s.methods), '#' + s.order_id] },
-                method: { title: `${String(key).toUpperCase()} — payments`, sum: d => `${d.summary.count} payment(s) &middot; <strong>${money(d.summary.revenue)}</strong> collected`, headers: ['When', 'Order', 'Amount', 'Tip', 'Total'], row: s => [dt(s.paid_at), '#' + s.order_id, money(s.amount), money(s.tip), money(s.amount + s.tip)] },
-                day: { title: `${key} — orders`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${money(d.summary.tips)} tips`, headers: ['Time', 'Order', 'Items', 'Total', 'Payment'], row: s => [dt(s.paid_at), '#' + s.order_id, s.item_count, money(s.subtotal + s.tip), badge(s.methods)] },
+                item: { title: `${key} — sales`, sum: d => `${d.summary.qty} sold &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} sale(s)`, headers: ['When', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.qty, money(s.line_total), badge(s.methods), olink(s.order_id)] },
+                category: { title: `${cap(key)} — category sales`, sum: d => `${d.summary.qty} items &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} line(s)`, headers: ['When', 'Item', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.item, s.qty, money(s.line_total), badge(s.methods), olink(s.order_id)] },
+                method: { title: `${String(key).toUpperCase()} — payments`, sum: d => `${d.summary.count} payment(s) &middot; <strong>${money(d.summary.revenue)}</strong> collected`, headers: ['When', 'Order', 'Amount', 'Tip', 'Total'], row: s => [dt(s.paid_at), olink(s.order_id), money(s.amount), money(s.tip), money(s.amount + s.tip)] },
+                day: { title: `${key} — orders`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${money(d.summary.tips)} tips`, headers: ['Time', 'Order', 'Items', 'Total', 'Payment'], row: s => [dt(s.paid_at), olink(s.order_id), s.item_count, money(s.subtotal + s.tip), badge(s.methods)] },
             }[dim];
             document.getElementById('drillTitle').innerHTML = cfg.title;
             document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
@@ -1319,6 +1327,38 @@
                 const thead = cfg.headers.map((h, i) => `<th style="text-align:${al[i]};">${h}</th>`).join('');
                 const tbody = (d.sales || []).map(s => '<tr>' + cfg.row(s).map((c, i) => `<td style="text-align:${al[i]};">${c}</td>`).join('') + '</tr>').join('');
                 document.getElementById('drillBody').innerHTML = `<p style="margin:0 0 12px;color:#555;">${cfg.sum(d)}</p>${(d.sales || []).length ? `<div class="table-wrapper"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>` : '<p style="color:#999;">No sales in the selected range.</p>'}`;
+                wireOrderLinks();
+            } catch (e) { document.getElementById('drillBody').innerHTML = '<p style="color:#a00;">Could not load: ' + e.message + '</p>'; }
+        }
+
+        // Deepest drill: one order's full detail (items + payments).
+        async function openOrder(id) {
+            document.getElementById('drillTitle').innerHTML = 'Order #' + id;
+            document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
+            document.getElementById('itemDrillModal').classList.add('active');
+            const dt = t => t ? new Date(t + 'Z').toLocaleString() : '—';
+            const statusBadge = s => `<span class="badge badge-${s === 'paid' ? 'paid' : s === 'void' ? 'cancelled' : 'pending'}">${s}</span>`;
+            try {
+                const o = await api(`/api/admin/pos/order/${id}`);
+                const back = lastDrill ? `<a href="#" class="drill-back" style="font-size:.85rem;">&larr; Back to results</a>` : '';
+                document.getElementById('drillBody').innerHTML = `
+                    ${back}
+                    <p style="margin:8px 0 12px;color:#555;">Status: ${statusBadge(o.status)}${o.label ? ' &middot; ' + o.label : ''}${o.server_name ? ' &middot; ' + o.server_name : ''}<br>
+                        <span style="color:#888;font-size:.85rem;">Created ${dt(o.created_at)}${o.paid_at ? ' &middot; Paid ' + dt(o.paid_at) : ''}</span></p>
+                    <div class="table-wrapper"><table>
+                        <thead><tr><th>Item</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Price</th><th style="text-align:right;">Total</th></tr></thead>
+                        <tbody>${o.items.map(i => `<tr><td>${i.name}</td><td style="text-align:right;">${i.qty}</td><td style="text-align:right;">${money(i.unit_price)}</td><td style="text-align:right;">${money(i.line_total)}</td></tr>`).join('')}</tbody>
+                        <tfoot>
+                            <tr><td colspan="3" style="text-align:right;">Subtotal</td><td style="text-align:right;">${money(o.subtotal)}</td></tr>
+                            ${o.tip ? `<tr><td colspan="3" style="text-align:right;">Tip</td><td style="text-align:right;">${money(o.tip)}</td></tr>` : ''}
+                            <tr><td colspan="3" style="text-align:right;"><strong>Total</strong></td><td style="text-align:right;"><strong>${money(o.total)}</strong></td></tr>
+                        </tfoot>
+                    </table></div>
+                    <h4 style="margin:14px 0 6px;">Payment${o.payments.length > 1 ? 's' : ''}</h4>
+                    <div class="table-wrapper"><table><thead><tr><th>Method</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Tip</th><th>Status</th><th>When</th></tr></thead>
+                    <tbody>${o.payments.map(p => `<tr><td>${p.method.toUpperCase()}</td><td style="text-align:right;">${money(p.amount)}</td><td style="text-align:right;">${money(p.tip)}</td><td>${statusBadge(p.status)}</td><td>${dt(p.paid_at)}</td></tr>`).join('') || '<tr><td colspan="5" style="color:#999;">No payments</td></tr>'}</tbody></table></div>`;
+                const bl = document.querySelector('#drillBody .drill-back');
+                if (bl) bl.addEventListener('click', e => { e.preventDefault(); openDrill(lastDrill.dim, lastDrill.key); });
             } catch (e) { document.getElementById('drillBody').innerHTML = '<p style="color:#a00;">Could not load: ' + e.message + '</p>'; }
         }
 
@@ -1424,9 +1464,11 @@
         async function loadPosEvents() {
             try {
                 const ev = await api('/api/admin/pos/events');
-                document.getElementById('posEvents').innerHTML = ev.slice(0, 60).map(e =>
-                    `<div style="padding:2px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${new Date(e.created_at + 'Z').toLocaleString()}</span> — <strong>${e.event}</strong>${e.detail ? ' · ' + e.detail : ''}${e.actor ? ' · ' + e.actor : ''}${e.order_id ? ` <span style="color:#aaa;">#${e.order_id}</span>` : ''}</div>`
+                const box = document.getElementById('posEvents');
+                box.innerHTML = ev.slice(0, 60).map(e =>
+                    `<div class="ev-row${e.order_id ? ' clickable' : ''}"${e.order_id ? ` data-order="${e.order_id}"` : ''} style="padding:3px 4px;border-bottom:1px solid #f0f0f0;${e.order_id ? 'cursor:pointer;' : ''}"><span style="color:#888;">${new Date(e.created_at + 'Z').toLocaleString()}</span> — <strong>${e.event}</strong>${e.detail ? ' · ' + e.detail : ''}${e.actor ? ' · ' + e.actor : ''}${e.order_id ? ` <span style="color:#002868;font-weight:600;">#${e.order_id}</span>` : ''}</div>`
                 ).join('') || '<span style="color:#999">No activity yet</span>';
+                box.querySelectorAll('.ev-row.clickable').forEach(el => el.addEventListener('click', () => openOrder(el.dataset.order)));
             } catch (e) {}
         }
         function showPosProductModal() {
