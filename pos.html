@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260723-2"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260723-3"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -90,7 +90,7 @@
   <div id="app" class="hidden">
     <header>
       <span class="title">🍺 Post 228 Bar</span>
-      <input id="server" placeholder="Bartender name" style="width:130px;">
+      <select id="server" style="max-width:170px;padding:7px 8px;border-radius:8px;border:none;"><option value="">— Bartender —</option></select>
       <span class="spacer"></span>
       <button onclick="openTabs()">Tabs (<span id="tabcount">0</span>)</button>
       <button id="lockBtn" onclick="lock()">Lock</button>
@@ -165,10 +165,21 @@
     async function startApp(){
       $('lock').classList.add('hidden'); $('app').classList.remove('hidden');
       if(EMBEDDED) $('lockBtn').style.display='none'; // inside admin — no lock button
-      const sv=localStorage.getItem('pos_server'); if(sv)$('server').value=sv;
-      $('server').addEventListener('change',()=>localStorage.setItem('pos_server',$('server').value));
+      await loadBartenders();
       await loadMenu(); refreshTabs();
     }
+    async function loadBartenders(){
+      try{
+        const r=await fetch(`${API}/api/pos/bartenders`,{headers:auth()});
+        const list=await r.json();
+        const sel=$('server');
+        sel.innerHTML='<option value="">— Bartender —</option>'+(Array.isArray(list)?list:[]).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+        const saved=localStorage.getItem('pos_bartender_id'); if(saved) sel.value=saved;
+        sel.addEventListener('change',()=>localStorage.setItem('pos_bartender_id',sel.value));
+      }catch(e){}
+    }
+    // Currently selected bartender (roster) for attribution.
+    function serverInfo(){ const sel=$('server'); const opt=sel.options[sel.selectedIndex]; return { server_id: sel.value?parseInt(sel.value,10):null, server_name:(sel.value&&opt)?opt.text:null }; }
 
     // ---------- menu ----------
     async function loadMenu(){
@@ -208,7 +219,7 @@
     async function ensureOrder(){
       if(orderId) return orderId;
       if(!cart.length){ toast('Cart is empty'); throw new Error('empty'); }
-      const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items:cart.map(i=>({product_id:i.product_id,qty:i.qty})),server_name:$('server').value})});
+      const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items:cart.map(i=>({product_id:i.product_id,qty:i.qty})),...serverInfo()})});
       const j=await r.json(); if(!r.ok)throw new Error(j.error||'order failed');
       orderId=j.id; return orderId;
     }
@@ -334,7 +345,7 @@
       } else {
         if(!items.length){ toast('Cart is empty'); return; }
         const label=prompt('Tab name (customer):'); if(label===null)return;
-        const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items,label,server_name:$('server').value})});
+        const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items,label,...serverInfo()})});
         if(r.ok){ toast('Tab saved'); resetOrder(); refreshTabs(); }
       }
     }

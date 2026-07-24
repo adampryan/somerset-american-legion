@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260723-4"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260723-5"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -746,6 +746,7 @@
                         <div class="card-box"><h3><i class="fas fa-layer-group"></i> By Category <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posByCat"></div></div>
                         <div class="card-box"><h3><i class="fas fa-credit-card"></i> By Payment Method <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posByMethod"></div></div>
                         <div class="card-box"><h3><i class="fas fa-calendar-day"></i> Sales by Day <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posByDay" style="max-height:230px;overflow:auto;"></div></div>
+                        <div class="card-box"><h3><i class="fas fa-user-friends"></i> By Bartender <small style="font-weight:400;color:#888;">(click for detail)</small></h3><div id="posByBartender" style="max-height:230px;overflow:auto;"></div></div>
                     </div>
                     <h3 style="margin:18px 0 8px;">Recent Activity</h3>
                     <div id="posEvents" style="font-size:.85rem;color:#444;max-height:240px;overflow:auto;background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:10px;"></div>
@@ -1316,6 +1317,7 @@
                 category: { title: `${cap(key)} — category sales`, sum: d => `${d.summary.qty} items &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} line(s)`, headers: ['When', 'Item', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.item, s.qty, money(s.line_total), badge(s.methods), olink(s.order_id)] },
                 method: { title: `${String(key).toUpperCase()} — payments`, sum: d => `${d.summary.count} payment(s) &middot; <strong>${money(d.summary.revenue)}</strong> collected`, headers: ['When', 'Order', 'Amount', 'Tip', 'Total'], row: s => [dt(s.paid_at), olink(s.order_id), money(s.amount), money(s.tip), money(s.amount + s.tip)] },
                 day: { title: `${key} — orders`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${money(d.summary.tips)} tips`, headers: ['Time', 'Order', 'Items', 'Total', 'Payment'], row: s => [dt(s.paid_at), olink(s.order_id), s.item_count, money(s.subtotal + s.tip), badge(s.methods)] },
+                bartender: { title: `${key} — sales`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${money(d.summary.tips)} tips`, headers: ['When', 'Order', 'Items', 'Total', 'Payment'], row: s => [dt(s.paid_at), olink(s.order_id), s.item_count, money(s.subtotal + s.tip), badge(s.methods)] },
             }[dim];
             document.getElementById('drillTitle').innerHTML = cfg.title;
             document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
@@ -1399,6 +1401,7 @@
                     ? `<table style="width:100%;font-size:.85rem;"><thead><tr><th style="text-align:left;">Day</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Gross</th><th style="text-align:right;">Tips</th></tr></thead><tbody>${days.map(d => `<tr class="day-row" data-day="${d.day}" style="cursor:pointer;"><td>${d.day}</td><td style="text-align:right;">${d.orders}</td><td style="text-align:right;">${money(d.gross)}</td><td style="text-align:right;">${money(d.tips)}</td></tr>`).join('')}</tbody></table>`
                     : '<span style="color:#999">No sales in range</span>';
                 byDayEl.querySelectorAll('.day-row').forEach(el => el.addEventListener('click', () => openDrill('day', el.dataset.day)));
+                renderBars('posByBartender', (r.by_bartender || []).map(x => ({ key: x.name, label: x.name, value: x.gross, extra: `${money(x.gross)} · ${x.orders}` })), 'bartender');
             } catch (e) { console.error(e); }
         }
         function exportPosCsv() {
