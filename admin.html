@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260723-7"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260723-8"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -802,9 +802,9 @@
             <!-- Users Panel -->
             <div class="panel" id="usersPanel">
                 <div class="panel-header">
-                    <h2>Officers</h2>
+                    <h2>Users</h2>
                     <button class="btn btn-primary btn-sm" onclick="showUserModal()">
-                        <i class="fas fa-user-plus"></i> Add Officer
+                        <i class="fas fa-user-plus"></i> Add User
                     </button>
                 </div>
                 <div class="panel-body">
@@ -813,8 +813,8 @@
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
+                                    <th>Email &amp; page access</th>
+                                    <th>Access</th>
                                     <th>Alerts</th>
                                     <th>Actions</th>
                                 </tr>
@@ -1884,13 +1884,13 @@
                 const lvl = detectLevel(u);
                 const lvlLabel = { webmaster: 'Webmaster', officer: 'Officer', bartender: 'Bartender', custom: 'Custom' }[lvl];
                 const permSummary = u.role === 'webmaster'
-                    ? '<span class="badge badge-approved">Webmaster · all access</span>'
-                    : `<span class="badge badge-approved">${lvlLabel}</span> ${(u.permissions || []).map(p => PERM_LABELS[p] || p).join(', ') || '<span style="color:#999">None</span>'}`;
+                    ? 'All pages'
+                    : ((u.permissions || []).map(p => PERM_LABELS[p] || p).join(', ') || '<span style="color:#999">No access</span>');
                 return `
                 <tr>
                     <td>${u.name}</td>
                     <td>${u.email}<br><small style="color:#666">${permSummary}</small></td>
-                    <td>${u.role}</td>
+                    <td><span class="badge badge-approved">${lvlLabel}</span></td>
                     <td>
                         <button class="btn btn-sm ${u.email_notifications ? 'btn-success' : ''}"
                                 onclick="toggleNotifications(${u.id}, ${!u.email_notifications})"
@@ -1899,7 +1899,7 @@
                         </button>
                     </td>
                     <td class="actions">
-                        <button class="btn btn-sm" onclick="editUser(${u.id})" title="Edit role & access"><i class="fas fa-user-shield"></i></button>
+                        <button class="btn btn-sm" onclick="editUser(${u.id})" title="Edit access"><i class="fas fa-user-shield"></i></button>
                         ${u.id !== currentUser.id ? `
                             <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
                         ` : '<span style="color:#666">You</span>'}
@@ -2570,7 +2570,7 @@
         }
 
         async function deleteUser(id) {
-            if (!confirm('Remove this officer?')) return;
+            if (!confirm('Remove this user?')) return;
             await api(`/api/admin/users/${id}`, 'DELETE');
             loadUsers();
         }
