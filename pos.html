@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260723-4"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260723-5"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -130,8 +130,8 @@
     let TOKEN=localStorage.getItem('pos_token')||'';
     // When embedded inside the admin panel (same origin), reuse the manager's login
     // so no separate passcode is needed.
-    let EMBEDDED=false;
-    if(!TOKEN){ const adm=localStorage.getItem('legion_token'); if(adm){ TOKEN=adm; EMBEDDED=true; } }
+    let EMBEDDED=false, embeddedUser=null;
+    if(!TOKEN){ const adm=localStorage.getItem('legion_token'); if(adm){ TOKEN=adm; EMBEDDED=true; try{ embeddedUser=JSON.parse(localStorage.getItem('legion_user')||'null'); }catch(e){} } }
     let products=[], cart=[], curCat='all', orderId=null, splitWays=1;
     const stripe=window.Stripe?Stripe(PK):null;
     const $=id=>document.getElementById(id);
@@ -164,8 +164,14 @@
 
     async function startApp(){
       $('lock').classList.add('hidden'); $('app').classList.remove('hidden');
-      if(EMBEDDED) $('lockBtn').style.display='none'; // inside admin — no lock button
-      await loadBartenders();
+      if(EMBEDDED && embeddedUser){
+        // Behind the admin login: the logged-in user IS the bartender — show their name, no picker.
+        $('lockBtn').style.display='none';
+        $('server').outerHTML = `<span id="serverLabel" style="color:#fff;font-weight:600;padding:6px 8px;white-space:nowrap;"><i class="fa"></i>👤 ${embeddedUser.name}</span>`;
+      } else {
+        if(EMBEDDED) $('lockBtn').style.display='none';
+        await loadBartenders();
+      }
       await loadMenu(); refreshTabs();
     }
     async function loadBartenders(){
@@ -178,13 +184,18 @@
         sel.addEventListener('change',()=>localStorage.setItem('pos_bartender_id',sel.value));
       }catch(e){}
     }
-    // Currently selected bartender (roster) for attribution.
-    function serverInfo(){ const sel=$('server'); const opt=sel.options[sel.selectedIndex]; return { server_id: sel.value?parseInt(sel.value,10):null, server_name:(sel.value&&opt)?opt.text:null }; }
-    // A bartender must be selected before an order is created/charged.
+    // Who the sale is attributed to. Embedded → the logged-in user; standalone → the roster picker.
+    function serverInfo(){
+      if(EMBEDDED && embeddedUser) return { server_id:null, server_name: embeddedUser.name };
+      const sel=$('server'); if(!sel) return { server_id:null, server_name:null };
+      const opt=sel.options[sel.selectedIndex]; return { server_id: sel.value?parseInt(sel.value,10):null, server_name:(sel.value&&opt)?opt.text:null };
+    }
+    // A bartender must be identified before an order is created/charged.
     function requireServer(){
+      if(EMBEDDED && embeddedUser) return true;   // logged-in user is the bartender
       if(serverInfo().server_id) return true;
       toast('Select a bartender first');
-      const s=$('server'); s.focus(); s.style.outline='3px solid #b22234'; setTimeout(()=>s.style.outline='',1600);
+      const s=$('server'); if(s){ s.focus(); s.style.outline='3px solid #b22234'; setTimeout(()=>s.style.outline='',1600); }
       return false;
     }
 
