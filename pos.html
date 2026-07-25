@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260723-6"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260723-7"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -25,13 +25,14 @@
       .keypad button:active { background:rgba(255,255,255,.35); }
 
       /* Layout */
-      header { background:var(--navy); color:#fff; display:flex; align-items:center; gap:12px; padding:8px 14px; }
+      #app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+      header { background:var(--navy); color:#fff; display:flex; align-items:center; gap:12px; padding:8px 14px; flex-shrink:0; flex-wrap:wrap; }
       header .title { font-family:'Cinzel',serif; font-weight:700; }
       header input { padding:7px 10px; border-radius:8px; border:none; }
       header .spacer { flex:1; }
       header button { background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 12px; border-radius:8px; }
-      .main { display:flex; height:calc(100vh - 52px); }
-      .menu { flex:1; overflow:auto; padding:10px; }
+      .main { display:flex; flex:1; min-height:0; }
+      .menu { flex:1; overflow:auto; padding:10px; min-height:0; }
       .cats { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
       .cat { padding:8px 14px; border-radius:20px; border:2px solid var(--navy); background:#fff; color:var(--navy); font-weight:600; }
       .cat.sel { background:var(--navy); color:#fff; }
@@ -42,9 +43,9 @@
       .prod .stock { font-size:.7rem; color:#a00; }
 
       /* Cart */
-      .cart { width:340px; background:#fff; border-left:1px solid #ddd; display:flex; flex-direction:column; }
+      .cart { width:340px; background:#fff; border-left:1px solid #ddd; display:flex; flex-direction:column; min-height:0; }
       .cart .head { padding:10px 14px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; }
-      .cart .items { flex:1; overflow:auto; padding:6px 10px; }
+      .cart .items { flex:1; overflow:auto; padding:6px 10px; min-height:0; }
       .ci { display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid #f0f0f0; }
       .ci .n { flex:1; }
       .ci .q { display:flex; align-items:center; gap:8px; }
