@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260723-8"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260723-9"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -716,7 +716,7 @@
             
             <!-- POS Register Panel (embeds the bartender POS, uses this login) -->
             <div class="panel" id="posPanel" style="padding:0;">
-                <iframe id="posFrame" title="Bar POS Register" style="width:100%;height:calc(100vh - 130px);min-height:560px;border:none;display:block;"></iframe>
+                <iframe id="posFrame" title="Bar POS Register" style="width:100%;height:70vh;border:none;display:block;"></iframe>
             </div>
 
             <!-- Tip-Out Panel (daily sales + tip-out; officers & bartenders) -->
@@ -1289,9 +1289,24 @@
                 } else if (tab.dataset.panel === 'pos') {
                     const f = document.getElementById('posFrame');
                     if (!f.getAttribute('src')) f.src = 'pos.html';
+                    requestAnimationFrame(sizePosFrame);
                 }
             });
         });
+
+        // Size the embedded POS iframe to exactly fill the remaining viewport height,
+        // so the register's bottom row (Save Tab / Split) is never below the fold.
+        function sizePosFrame() {
+            const f = document.getElementById('posFrame');
+            if (!f || !f.offsetParent) return; // only when the POS tab is visible
+            const top = f.getBoundingClientRect().top;
+            let h = Math.max(360, window.innerHeight - top);
+            f.style.height = h + 'px';
+            // Trim any residual page overflow (container padding/margins below the frame).
+            const over = document.documentElement.scrollHeight - window.innerHeight;
+            if (over > 0) f.style.height = Math.max(360, h - over) + 'px';
+        }
+        window.addEventListener('resize', sizePosFrame);
 
         // Which admin sections this user may see (webmaster = everything).
         function can(section) {

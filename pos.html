@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260723-7"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260723-8"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
       :root { --navy:#002868; --red:#b22234; --gold:#c8a54b; }
       * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-      html,body { margin:0; height:100%; font-family:'Source Sans 3',sans-serif; background:#ececea; color:#1a1a1a; overscroll-behavior:none; }
+      html,body { margin:0; height:100%; font-family:'Source Sans 3',sans-serif; background:#ececea; color:#1a1a1a; overscroll-behavior:none; overflow:hidden; }
       button { font-family:inherit; cursor:pointer; }
       .hidden { display:none !important; }
 
@@ -25,7 +25,7 @@
       .keypad button:active { background:rgba(255,255,255,.35); }
 
       /* Layout */
-      #app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+      #app { display:flex; flex-direction:column; height:100%; }
       header { background:var(--navy); color:#fff; display:flex; align-items:center; gap:12px; padding:8px 14px; flex-shrink:0; flex-wrap:wrap; }
       header .title { font-family:'Cinzel',serif; font-weight:700; }
       header input { padding:7px 10px; border-radius:8px; border:none; }
