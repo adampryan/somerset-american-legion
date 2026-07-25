@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260723-5"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260723-6"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -132,7 +132,7 @@
     // so no separate passcode is needed.
     let EMBEDDED=false, embeddedUser=null;
     if(!TOKEN){ const adm=localStorage.getItem('legion_token'); if(adm){ TOKEN=adm; EMBEDDED=true; try{ embeddedUser=JSON.parse(localStorage.getItem('legion_user')||'null'); }catch(e){} } }
-    let products=[], cart=[], curCat='all', orderId=null, splitWays=1;
+    let products=[], cart=[], curCat='all', orderId=null, splitWays=1, lastActivity=Date.now();
     const stripe=window.Stripe?Stripe(PK):null;
     const $=id=>document.getElementById(id);
     const money=c=>'$'+(c/100).toFixed(2);
@@ -217,6 +217,7 @@
 
     // ---------- cart ----------
     function addToCart(id){
+      lastActivity=Date.now();
       const p=products.find(x=>x.id===id); if(!p)return;
       const ex=cart.find(x=>x.product_id===id);
       if(ex)ex.qty++; else cart.push({product_id:id,name:p.name,price:p.price,qty:1});
@@ -245,6 +246,7 @@
     // ---------- charge ----------
     async function charge(method){
       try{
+        lastActivity=Date.now();
         if(!cart.length){ toast('Cart is empty'); return; }
         if(!orderId && !requireServer()) return;   // new order needs a bartender
         const id=await ensureOrder();
@@ -275,8 +277,7 @@
           const amount = splitWays>1 ? base : undefined;
           const r=await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify({method:'cash',tip:0,...(amount?{amount}:{})})});
           const j=await r.json(); if(!r.ok)throw new Error(j.error||'charge failed');
-          modal(`<div class="modal"><div class="big">✅</div><h2>Cash Recorded</h2><p>${money(base)}</p><button class="btn primary" onclick="window._next()">New Order</button></div>`);
-          poll(id);
+          saleDone(`Cash recorded — ${money(base)}`);
         }catch(e){ $('cerr').textContent=e.message; $('cerr').style.display='block'; $('cpay').disabled=false; }
       });
     }
@@ -291,12 +292,18 @@
     }
     function orderPaidCheck(){}
     window._next=()=>{ closeModal(); resetOrder(); loadMenu(); refreshTabs(); };
+    // After a completed sale: brief ✅, then auto-return to a fresh register (stay in the POS).
+    function saleDone(msg){
+      lastActivity=Date.now();
+      modal(`<div class="modal" style="text-align:center;"><div class="big">✅</div><h2>${msg}</h2><p style="color:#888;">Ready for next order…</p></div>`);
+      setTimeout(()=>{ closeModal(); resetOrder(); loadMenu(); refreshTabs(); }, 1500);
+    }
 
     // QR
     function qrModal(j){
       modal(`<div class="modal"><h2>Scan to Pay</h2><p>Customer scans, adds a tip, and pays on their phone.</p><div id="qrbox"></div><p style="word-break:break-all;font-size:.75rem;color:#888;">${j.pay_url}</p><div id="qrstatus">Waiting for payment…</div><button class="btn ghost" onclick="window._next()">Done / New Order</button></div>`);
       new QRCode($('qrbox'),{text:j.pay_url,width:230,height:230,colorDark:'#002868'});
-      poll(orderId, ()=>{ $('qrstatus').innerHTML='<strong style="color:#2e7d32;">✅ Paid!</strong>'; });
+      poll(orderId, ()=>{ saleDone('Paid — thank you!'); });
     }
 
     // Manual card entry (turn the tablet to the customer): tip + total, then card.
@@ -335,7 +342,7 @@
         $('mpay').disabled=true; const t=$('mpay').textContent; $('mpay').textContent='Processing…';
         const {error,paymentIntent}=await stripe.confirmPayment({elements,confirmParams:{return_url:location.href},redirect:'if_required'});
         if(error){ $('merr').textContent=error.message; $('merr').style.display='block'; $('mpay').disabled=false; $('mpay').textContent=t; return; }
-        if(paymentIntent&&paymentIntent.status==='succeeded'){ modal(`<div class="modal"><div class="big">✅</div><h2>Approved</h2><p>${money(base+tipC)} paid</p><button class="btn primary" onclick="window._next()">New Order</button></div>`); poll(orderId); }
+        if(paymentIntent&&paymentIntent.status==='succeeded'){ saleDone(`Approved — ${money(base+tipC)}`); }
       });
     }
 
@@ -400,14 +407,15 @@
     window.charge=charge; window.openTabs=openTabs; window.saveTab=saveTab; window.splitPrompt=splitPrompt; window.clearItems=clearItems; window.lock=lock;
 
     // ---------- auto-update (defeats GitHub Pages' 10-min HTML cache on kiosks) ----------
-    // If a newer build is deployed, reload to it — but only when idle (empty cart, no modal),
-    // so a bartender is never interrupted mid-order.
+    // Reload to a newer build ONLY when truly idle — empty cart, no modal, and no activity
+    // (incl. a completed sale) in the last 3 min — so it never reloads right after a sale.
     const POS_BUILD = (document.querySelector('meta[name="build"]')||{}).content || '';
     async function checkUpdate(){
       try{
+        if(cart.length || $('modalRoot').innerHTML || (Date.now()-lastActivity < 180000)) return;
         const html = await (await fetch(location.pathname + '?_cb=' + Date.now(), {cache:'no-store'})).text();
         const m = html.match(/name="build" content="([^"]+)"/);
-        if(m && m[1] && m[1] !== POS_BUILD && cart.length===0 && !$('modalRoot').innerHTML){
+        if(m && m[1] && m[1] !== POS_BUILD){
           location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
         }
       }catch(e){}
