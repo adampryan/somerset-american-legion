@@ -222,7 +222,78 @@
             border-bottom-color: var(--gold);
             font-weight: 600;
         }
-        
+
+        /* Sub-tabs inside a panel (Finance uses these) */
+        .subtabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 0 20px;
+            margin-top: -6px;
+            flex-wrap: wrap;
+        }
+        .subtab {
+            padding: 10px 18px;
+            border: none;
+            background: none;
+            font-size: 14px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--gray-600);
+        }
+        .subtab:hover { color: var(--navy); }
+        .subtab.active {
+            color: var(--navy);
+            border-bottom-color: var(--gold);
+            font-weight: 600;
+        }
+        .subpanel { display: none; padding: 20px; }
+        .subpanel.active { display: block; }
+
+        /* Finance-specific styling */
+        .fin-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .fin-card {
+            background: var(--gray-50, #f9fafb);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .fin-card .lbl { font-size: 12px; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.05em; }
+        .fin-card .val { font-size: 22px; font-weight: 700; color: var(--navy); margin-top: 6px; }
+        .fin-card .sub { font-size: 12px; color: var(--gray-600); margin-top: 4px; }
+        .fin-card.income .val { color: #0a7a3a; }
+        .fin-card.expense .val { color: #b0212a; }
+        .fin-card.neg .val { color: #b0212a; }
+
+        .fin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .fin-table th, .fin-table td { padding: 8px 10px; border-bottom: 1px solid var(--gray-200); text-align: left; }
+        .fin-table th { background: var(--gray-50, #f9fafb); font-weight: 600; color: var(--navy); position: sticky; top: 0; }
+        .fin-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .fin-table tr:hover { background: #fafbfc; }
+        .fin-amt-pos { color: #0a7a3a; }
+        .fin-amt-neg { color: #b0212a; }
+
+        .fin-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+            align-items: end;
+        }
+        .fin-filters label { font-size: 12px; color: var(--gray-600); display: block; margin-bottom: 3px; }
+        .fin-filters select,
+        .fin-filters input {
+            padding: 6px 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
         .content {
             padding: 30px;
             max-width: 1200px;
@@ -859,27 +930,91 @@
             <!-- Finance Panel (webmaster only) -->
             <div class="panel" id="financePanel">
                 <div class="panel-header">
-                    <h2>Finance Officer Report</h2>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <button class="btn btn-primary btn-sm" onclick="downloadLedger('2025')" title="Reconciled 2025 transaction ledger (Excel)">
-                            <i class="fas fa-file-excel"></i> 2025 Ledger
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="downloadLedger('2026')" title="2026 receipts, bills &amp; flags (Excel)">
-                            <i class="fas fa-file-excel"></i> 2026 Ledger
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="printFinanceReport()">
-                            <i class="fas fa-print"></i> Print / PDF
-                        </button>
+                    <h2>Finance</h2>
+                    <div id="financeHeaderActions" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                </div>
+
+                <div class="subtabs" id="financeSubtabs">
+                    <button class="subtab active" data-sub="dashboard"><i class="fas fa-gauge-high"></i> Dashboard</button>
+                    <button class="subtab" data-sub="transactions"><i class="fas fa-list"></i> Transactions</button>
+                    <button class="subtab" data-sub="officer"><i class="fas fa-file-invoice-dollar"></i> Officer Report</button>
+                    <button class="subtab" data-sub="downloads"><i class="fas fa-download"></i> Downloads</button>
+                </div>
+
+                <!-- Dashboard -->
+                <div class="subpanel active" id="finSubDashboard">
+                    <div id="finDashLoading" class="empty-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading dashboard&hellip;</p>
+                    </div>
+                    <div id="finDashError" class="error-msg" style="display:none;"></div>
+                    <div id="finDashContent" style="display:none;">
+                        <div class="fin-cards" id="finAcctCards"></div>
+                        <h3 style="margin:8px 0 12px;color:var(--navy);font-size:16px;">YTD Summary</h3>
+                        <div class="fin-cards" id="finYtdCards"></div>
+                        <h3 style="margin:8px 0 12px;color:var(--navy);font-size:16px;">Recent Activity</h3>
+                        <div style="overflow-x:auto;">
+                            <table class="fin-table" id="finRecentTable"></table>
+                        </div>
                     </div>
                 </div>
-                <div class="panel-body">
+
+                <!-- Transactions -->
+                <div class="subpanel" id="finSubTransactions">
+                    <div class="fin-filters">
+                        <div>
+                            <label>Account</label>
+                            <select id="finTxAccount"><option value="">All</option></select>
+                        </div>
+                        <div>
+                            <label>Category</label>
+                            <select id="finTxCategory"><option value="">All</option></select>
+                        </div>
+                        <div>
+                            <label>From</label>
+                            <input type="date" id="finTxFrom">
+                        </div>
+                        <div>
+                            <label>To</label>
+                            <input type="date" id="finTxTo">
+                        </div>
+                        <div style="flex:1;min-width:180px;">
+                            <label>Search (payee / memo / check#)</label>
+                            <input type="text" id="finTxSearch" placeholder="e.g. Comcast, 1463">
+                        </div>
+                        <div>
+                            <button class="btn btn-primary btn-sm" onclick="loadFinanceTransactions()"><i class="fas fa-filter"></i> Apply</button>
+                        </div>
+                    </div>
+                    <div id="finTxError" class="error-msg" style="display:none;"></div>
+                    <div id="finTxMeta" style="font-size:12px;color:var(--gray-600);margin-bottom:8px;"></div>
+                    <div style="overflow-x:auto;max-height:65vh;">
+                        <table class="fin-table" id="finTxTable"></table>
+                    </div>
+                </div>
+
+                <!-- Officer Report (existing) -->
+                <div class="subpanel" id="finSubOfficer">
                     <div class="empty-state" id="financeLoading">
                         <i class="fas fa-spinner fa-spin"></i>
                         <p>Loading report&hellip;</p>
                     </div>
                     <div class="error-msg" id="financeError" style="display:none;"></div>
                     <iframe id="financeFrame" title="Post 228 Finance Officer Report"
-                        style="width:100%;height:600px;border:1px solid #d6dbe3;border-radius:8px;display:none;background:#fff;"></iframe>
+                        style="width:100%;height:70vh;border:1px solid #d6dbe3;border-radius:8px;display:none;background:#fff;"></iframe>
+                </div>
+
+                <!-- Downloads -->
+                <div class="subpanel" id="finSubDownloads">
+                    <p style="color:var(--gray-600);margin-bottom:16px;">Pre-built Excel workbooks. As Slice 2 lands, these will be replaced by live exports from the D1 ledger.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="downloadLedger('2025')" title="Reconciled 2025 transaction ledger (Excel)">
+                            <i class="fas fa-file-excel"></i> 2025 Ledger (reconciled)
+                        </button>
+                        <button class="btn btn-primary" onclick="downloadLedger('2026')" title="2026 receipts, bills &amp; flags (Excel)">
+                            <i class="fas fa-file-excel"></i> 2026 Ledger (YTD)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1279,7 +1414,9 @@
                 } else if (tab.dataset.panel === 'bartenders') {
                     loadBartenders();
                 } else if (tab.dataset.panel === 'finance') {
-                    loadFinanceReport();
+                    // Show whichever sub-tab is currently active (Dashboard on first visit).
+                    const active = document.querySelector('#financeSubtabs .subtab.active');
+                    selectFinanceSubtab(active ? active.dataset.sub : 'dashboard');
                 } else if (tab.dataset.panel === 'bar') {
                     loadBar();
                 } else if (tab.dataset.panel === 'inventory') {
@@ -1696,6 +1833,229 @@
                 frame.contentWindow.focus();
                 frame.contentWindow.print();
             }
+        }
+
+        // -----------------------------------------------------------------
+        // Finance sub-tabs: Dashboard, Transactions, Officer Report, Downloads
+        // -----------------------------------------------------------------
+        const fmtMoney = n =>
+            (n < 0 ? '-' : '') + '$' + Math.abs(Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtDate = s => (s || '').slice(5, 10);   // "MM-DD"
+
+        let finCategoriesCache = null;
+
+        document.querySelectorAll('#financeSubtabs .subtab').forEach(btn => {
+            btn.addEventListener('click', () => selectFinanceSubtab(btn.dataset.sub));
+        });
+
+        function selectFinanceSubtab(name) {
+            document.querySelectorAll('#financeSubtabs .subtab').forEach(b =>
+                b.classList.toggle('active', b.dataset.sub === name));
+            document.querySelectorAll('#financePanel .subpanel').forEach(p => p.classList.remove('active'));
+
+            const map = {
+                dashboard: 'finSubDashboard',
+                transactions: 'finSubTransactions',
+                officer: 'finSubOfficer',
+                downloads: 'finSubDownloads',
+            };
+            const el = document.getElementById(map[name]);
+            if (el) el.classList.add('active');
+
+            // Reset header actions per sub-tab.
+            const actions = document.getElementById('financeHeaderActions');
+            actions.innerHTML = '';
+            if (name === 'dashboard') {
+                actions.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="loadFinanceDashboard(true)"><i class="fas fa-arrows-rotate"></i> Refresh</button>`;
+            } else if (name === 'transactions') {
+                actions.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="loadFinanceTransactions()"><i class="fas fa-arrows-rotate"></i> Reload</button>`;
+            } else if (name === 'officer') {
+                actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="printFinanceReport()"><i class="fas fa-print"></i> Print / PDF</button>`;
+            }
+
+            // Lazy-load on first visit.
+            if (name === 'dashboard') loadFinanceDashboard();
+            if (name === 'transactions') initFinanceTransactions();
+            if (name === 'officer') loadFinanceReport();
+        }
+
+        // Dashboard -------------------------------------------------------
+        let finDashLoaded = false;
+        async function loadFinanceDashboard(force = false) {
+            if (finDashLoaded && !force) return;
+            const loading = document.getElementById('finDashLoading');
+            const errEl = document.getElementById('finDashError');
+            const content = document.getElementById('finDashContent');
+            loading.style.display = 'block';
+            errEl.style.display = 'none';
+            content.style.display = 'none';
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/dashboard`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout('Session expired. Please sign in again.'); return; }
+                if (res.status === 403) { throw new Error('You do not have access to Finance.'); }
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+                const d = await res.json();
+                renderFinanceDashboard(d);
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                finDashLoaded = true;
+            } catch (err) {
+                loading.style.display = 'none';
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        function renderFinanceDashboard(d) {
+            // Account cards
+            const accts = document.getElementById('finAcctCards');
+            accts.innerHTML = d.accounts.filter(a => a.active).map(a => {
+                const cls = a.current_bal < 0 ? 'fin-card neg' : 'fin-card';
+                return `<div class="${cls}">
+                    <div class="lbl">${a.name}</div>
+                    <div class="val">${fmtMoney(a.current_bal)}</div>
+                    <div class="sub">${a.type} • opened ${a.opening_date} @ ${fmtMoney(a.opening_bal)}</div>
+                </div>`;
+            }).join('');
+
+            // YTD cards
+            const y = d.ytd || {};
+            const ytdEl = document.getElementById('finYtdCards');
+            const netCls = (y.net || 0) < 0 ? 'fin-card neg' : 'fin-card income';
+            ytdEl.innerHTML = `
+                <div class="fin-card income">
+                    <div class="lbl">${d.year} Income</div>
+                    <div class="val">${fmtMoney(y.income)}</div>
+                    <div class="sub">as of ${d.as_of}</div>
+                </div>
+                <div class="fin-card expense">
+                    <div class="lbl">${d.year} Expense</div>
+                    <div class="val">${fmtMoney(y.expense)}</div>
+                    <div class="sub">as of ${d.as_of}</div>
+                </div>
+                <div class="${netCls}">
+                    <div class="lbl">${d.year} Net</div>
+                    <div class="val">${fmtMoney(y.net)}</div>
+                    <div class="sub">income − expense</div>
+                </div>
+                <div class="fin-card">
+                    <div class="lbl">Unreconciled</div>
+                    <div class="val">${y.unreconciled_count || 0}</div>
+                    <div class="sub">of ${y.total_count || 0} total tx this year</div>
+                </div>`;
+
+            // Recent table
+            const tbl = document.getElementById('finRecentTable');
+            tbl.innerHTML = `
+                <thead><tr>
+                    <th>Date</th><th>Account</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th>
+                </tr></thead>
+                <tbody>` +
+                d.recent.map(r => `<tr>
+                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.account || '')}</td>
+                    <td>${escapeHtml(r.category || '—')}</td>
+                    <td>${escapeHtml(r.payee || '—')}</td>
+                    <td>${escapeHtml(r.memo || '')}</td>
+                    <td class="num ${r.amount >= 0 ? 'fin-amt-pos' : 'fin-amt-neg'}">${fmtMoney(r.amount)}</td>
+                </tr>`).join('') +
+                `</tbody>`;
+        }
+
+        // Transactions ----------------------------------------------------
+        let finTxInited = false;
+        async function initFinanceTransactions() {
+            if (finTxInited) return;
+            finTxInited = true;
+            try {
+                if (!finCategoriesCache) {
+                    const [accts, cats] = await Promise.all([
+                        fetch(`${API_URL}/api/admin/finance/accounts`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+                        fetch(`${API_URL}/api/admin/finance/categories`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+                    ]);
+                    const acctSel = document.getElementById('finTxAccount');
+                    accts.forEach(a => {
+                        const opt = document.createElement('option');
+                        opt.value = a.id; opt.textContent = a.name;
+                        acctSel.appendChild(opt);
+                    });
+                    const catSel = document.getElementById('finTxCategory');
+                    cats.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = (c.parent_id ? '  ↳ ' : '') + c.name + '  (' + c.kind + ')';
+                        catSel.appendChild(opt);
+                    });
+                    finCategoriesCache = cats;
+                }
+            } catch (err) {
+                document.getElementById('finTxError').textContent = 'Could not load filter options. ' + err.message;
+                document.getElementById('finTxError').style.display = 'block';
+            }
+            loadFinanceTransactions();
+        }
+
+        async function loadFinanceTransactions() {
+            const errEl = document.getElementById('finTxError');
+            const metaEl = document.getElementById('finTxMeta');
+            errEl.style.display = 'none';
+            metaEl.textContent = 'Loading…';
+            const params = new URLSearchParams();
+            const acct = document.getElementById('finTxAccount').value;
+            const cat  = document.getElementById('finTxCategory').value;
+            const from = document.getElementById('finTxFrom').value;
+            const to   = document.getElementById('finTxTo').value;
+            const q    = document.getElementById('finTxSearch').value.trim();
+            if (acct) params.set('account', acct);
+            if (cat)  params.set('category', cat);
+            if (from) params.set('from', from);
+            if (to)   params.set('to', to);
+            if (q)    params.set('search', q);
+            params.set('limit', '500');
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/transactions?` + params.toString(), {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout('Session expired. Please sign in again.'); return; }
+                if (res.status === 403) { throw new Error('You do not have access to Finance.'); }
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+                const d = await res.json();
+                renderFinanceTransactions(d);
+            } catch (err) {
+                metaEl.textContent = '';
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        function renderFinanceTransactions(d) {
+            const metaEl = document.getElementById('finTxMeta');
+            metaEl.textContent = `Showing ${d.rows.length} of ${d.total} transaction${d.total === 1 ? '' : 's'}${d.total > d.rows.length ? ' (narrow filters to see more)' : ''}.`;
+            const tbl = document.getElementById('finTxTable');
+            tbl.innerHTML = `
+                <thead><tr>
+                    <th>Date</th><th>Account</th><th>Chk#</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th><th>Rec</th>
+                </tr></thead>
+                <tbody>` +
+                d.rows.map(r => `<tr>
+                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.account || '')}</td>
+                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.category || '—')}</td>
+                    <td>${escapeHtml(r.payee || '—')}</td>
+                    <td>${escapeHtml(r.memo || '')}</td>
+                    <td class="num ${r.amount >= 0 ? 'fin-amt-pos' : 'fin-amt-neg'}">${fmtMoney(r.amount)}</td>
+                    <td>${r.reconciled_on ? '✓' : ''}</td>
+                </tr>`).join('') +
+                `</tbody>`;
+        }
+
+        function escapeHtml(s) {
+            return String(s || '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
         }
 
         // Download a ledger workbook. Uses fetch (not a plain link) so the bearer
