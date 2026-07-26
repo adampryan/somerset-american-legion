@@ -985,6 +985,9 @@
                         <div>
                             <button class="btn btn-primary btn-sm" onclick="loadFinanceTransactions()"><i class="fas fa-filter"></i> Apply</button>
                         </div>
+                        <div>
+                            <button class="btn btn-secondary btn-sm" onclick="openFinTxModal()"><i class="fas fa-plus"></i> Add Entry</button>
+                        </div>
                     </div>
                     <div id="finTxError" class="error-msg" style="display:none;"></div>
                     <div id="finTxMeta" style="font-size:12px;color:var(--gray-600);margin-bottom:8px;"></div>
@@ -1006,13 +1009,28 @@
 
                 <!-- Downloads -->
                 <div class="subpanel" id="finSubDownloads">
-                    <p style="color:var(--gray-600);margin-bottom:16px;">Pre-built Excel workbooks. As Slice 2 lands, these will be replaced by live exports from the D1 ledger.</p>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                        <button class="btn btn-primary" onclick="downloadLedger('2025')" title="Reconciled 2025 transaction ledger (Excel)">
-                            <i class="fas fa-file-excel"></i> 2025 Ledger (reconciled)
+                    <h3 style="margin:0 0 8px;color:var(--navy);font-size:16px;">Live export (from D1)</h3>
+                    <p style="color:var(--gray-600);margin-bottom:12px;font-size:13px;">Regenerated on demand — reflects any edits you've made in the Transactions tab. Opens in Excel or Google Sheets.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;">
+                        <button class="btn btn-primary" onclick="downloadLedgerCsv(2026)">
+                            <i class="fas fa-file-csv"></i> 2026 Ledger (CSV, live)
                         </button>
-                        <button class="btn btn-primary" onclick="downloadLedger('2026')" title="2026 receipts, bills &amp; flags (Excel)">
-                            <i class="fas fa-file-excel"></i> 2026 Ledger (YTD)
+                        <button class="btn btn-primary" onclick="downloadLedgerCsv(2025)">
+                            <i class="fas fa-file-csv"></i> 2025 Ledger (CSV, live)
+                        </button>
+                        <button class="btn btn-secondary" onclick="downloadLedgerCsv('')">
+                            <i class="fas fa-file-csv"></i> All years (CSV)
+                        </button>
+                    </div>
+
+                    <h3 style="margin:0 0 8px;color:var(--navy);font-size:16px;">Formatted snapshot (XLSX)</h3>
+                    <p style="color:var(--gray-600);margin-bottom:12px;font-size:13px;">Pre-built workbook with formatting, control tabs, and reconciliation math. Snapshots — will not reflect edits made since they were built.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button class="btn btn-secondary" onclick="downloadLedger('2025')" title="Reconciled 2025 transaction ledger (Excel)">
+                            <i class="fas fa-file-excel"></i> 2025 Ledger (Excel snapshot)
+                        </button>
+                        <button class="btn btn-secondary" onclick="downloadLedger('2026')" title="2026 receipts, bills &amp; flags (Excel)">
+                            <i class="fas fa-file-excel"></i> 2026 Ledger (Excel snapshot, Jul 21)
                         </button>
                     </div>
                 </div>
@@ -1378,6 +1396,79 @@
                 <button class="modal-close" onclick="closeModal('itemDrillModal')">&times;</button>
             </div>
             <div class="modal-body" id="drillBody"></div>
+        </div>
+    </div>
+
+    <!-- Finance Transaction modal (add + edit) -->
+    <div class="modal-overlay" id="finTxModal">
+        <div class="modal" style="max-width:720px;">
+            <div class="modal-header">
+                <h3 id="finTxModalTitle">Add Transaction</h3>
+                <button class="modal-close" onclick="closeModal('finTxModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="finTxModalError" class="error-msg" style="display:none;margin-bottom:10px;"></div>
+                <input type="hidden" id="finTxId">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--gray-600);">Date</label>
+                        <input type="date" id="finTxFieldDate" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--gray-600);">Account</label>
+                        <select id="finTxFieldAccount" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--gray-600);">Type</label>
+                        <select id="finTxFieldType" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
+                            <option value="withdrawal">Withdrawal / Expense (−)</option>
+                            <option value="deposit">Deposit / Income (+)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--gray-600);">Amount</label>
+                        <input type="number" step="0.01" min="0" id="finTxFieldAmount" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--gray-600);">Category</label>
+                        <select id="finTxFieldCategory" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
+                            <option value="">(auto — apply rules)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--gray-600);">Check #</label>
+                        <input type="number" id="finTxFieldCheck" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="optional">
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <label style="font-size:12px;color:var(--gray-600);">Payee</label>
+                        <input type="text" id="finTxFieldPayee" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="e.g. Comcast Business">
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <label style="font-size:12px;color:var(--gray-600);">Memo</label>
+                        <textarea id="finTxFieldMemo" rows="2" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="Description / notes"></textarea>
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <label style="font-size:12px;color:var(--gray-600);">Reconciled on</label>
+                        <input type="date" id="finTxFieldReconciled" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
+                    </div>
+                </div>
+
+                <div id="finTxAttachSection" style="margin-top:20px;display:none;">
+                    <h4 style="margin:0 0 8px;color:var(--navy);font-size:14px;">Attachments</h4>
+                    <div id="finTxAttachList" style="margin-bottom:10px;font-size:13px;"></div>
+                    <input type="file" id="finTxAttachInput" style="display:none;" onchange="uploadFinTxAttachment(event)">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('finTxAttachInput').click()">
+                        <i class="fas fa-paperclip"></i> Add file (max 500 KB)
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:space-between;gap:8px;">
+                <button type="button" class="btn btn-danger btn-sm" id="finTxDeleteBtn" style="display:none;" onclick="deleteFinTx()"><i class="fas fa-trash"></i> Delete</button>
+                <div style="display:flex;gap:8px;margin-left:auto;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('finTxModal')">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveFinTx()"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2056,6 +2147,261 @@
             return String(s || '').replace(/[&<>"']/g, c => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[c]));
+        }
+
+        // Row-click → Edit modal
+        let finTxRowsById = {};
+        (function bindRowClicks() {
+            // Delegate on the table so it works for future re-renders too.
+            document.getElementById('finTxTable').addEventListener('click', ev => {
+                const tr = ev.target.closest('tr[data-txid]');
+                if (tr) openFinTxModal(finTxRowsById[tr.dataset.txid]);
+            });
+        })();
+
+        // Extend renderer to attach data-txid and cache the row so Edit can prefill.
+        const _origRenderFinTx = renderFinanceTransactions;
+        renderFinanceTransactions = function (d) {
+            finTxRowsById = {};
+            d.rows.forEach(r => { finTxRowsById[r.id] = r; });
+            const metaEl = document.getElementById('finTxMeta');
+            metaEl.textContent = `Showing ${d.rows.length} of ${d.total} transaction${d.total === 1 ? '' : 's'}${d.total > d.rows.length ? ' (narrow filters to see more)' : ''}. Click any row to edit.`;
+            const tbl = document.getElementById('finTxTable');
+            tbl.innerHTML = `
+                <thead><tr>
+                    <th>Date</th><th>Account</th><th>Chk#</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th><th>Rec</th>
+                </tr></thead>
+                <tbody>` +
+                d.rows.map(r => `<tr data-txid="${r.id}" style="cursor:pointer;">
+                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.account || '')}</td>
+                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.category || '—')}</td>
+                    <td>${escapeHtml(r.payee || '—')}</td>
+                    <td>${escapeHtml(r.memo || '')}</td>
+                    <td class="num ${r.amount >= 0 ? 'fin-amt-pos' : 'fin-amt-neg'}">${fmtMoney(r.amount)}</td>
+                    <td>${r.reconciled_on ? '✓' : ''}</td>
+                </tr>`).join('') +
+                `</tbody>`;
+        };
+
+        // Add / Edit modal
+        async function openFinTxModal(row) {
+            // Make sure filter selects are populated (share their data).
+            if (!finTxInited) await initFinanceTransactions();
+            // Populate modal Account + Category selects (rebuild each open to stay in sync).
+            const accts = Array.from(document.getElementById('finTxAccount').options).slice(1);
+            const cats  = Array.from(document.getElementById('finTxCategory').options).slice(1);
+            const acctSel = document.getElementById('finTxFieldAccount');
+            const catSel  = document.getElementById('finTxFieldCategory');
+            acctSel.innerHTML = accts.map(o => `<option value="${o.value}">${escapeHtml(o.textContent)}</option>`).join('');
+            catSel.innerHTML = `<option value="">(auto — apply rules)</option>` +
+                cats.map(o => `<option value="${o.value}">${escapeHtml(o.textContent)}</option>`).join('');
+
+            document.getElementById('finTxModalError').style.display = 'none';
+            if (row) {
+                document.getElementById('finTxModalTitle').textContent = 'Edit Transaction #' + row.id;
+                document.getElementById('finTxId').value = row.id;
+                document.getElementById('finTxFieldDate').value = row.date;
+                document.getElementById('finTxFieldAccount').value = String(row.account_id || '');
+                document.getElementById('finTxFieldType').value = row.amount >= 0 ? 'deposit' : 'withdrawal';
+                document.getElementById('finTxFieldAmount').value = Math.abs(row.amount).toFixed(2);
+                document.getElementById('finTxFieldCategory').value = row.category_id ? String(row.category_id) : '';
+                document.getElementById('finTxFieldCheck').value = row.check_number || '';
+                document.getElementById('finTxFieldPayee').value = row.payee || '';
+                document.getElementById('finTxFieldMemo').value = row.memo || '';
+                document.getElementById('finTxFieldReconciled').value = row.reconciled_on || '';
+                document.getElementById('finTxDeleteBtn').style.display = '';
+                document.getElementById('finTxAttachSection').style.display = '';
+                loadFinTxAttachments(row.id);
+            } else {
+                document.getElementById('finTxModalTitle').textContent = 'Add Transaction';
+                document.getElementById('finTxId').value = '';
+                document.getElementById('finTxFieldDate').value = new Date().toISOString().slice(0, 10);
+                document.getElementById('finTxFieldAccount').value = accts[0] ? accts[0].value : '';
+                document.getElementById('finTxFieldType').value = 'withdrawal';
+                document.getElementById('finTxFieldAmount').value = '';
+                document.getElementById('finTxFieldCategory').value = '';
+                document.getElementById('finTxFieldCheck').value = '';
+                document.getElementById('finTxFieldPayee').value = '';
+                document.getElementById('finTxFieldMemo').value = '';
+                document.getElementById('finTxFieldReconciled').value = '';
+                document.getElementById('finTxDeleteBtn').style.display = 'none';
+                document.getElementById('finTxAttachSection').style.display = 'none';
+            }
+            openModal('finTxModal');
+        }
+
+        async function saveFinTx() {
+            const errEl = document.getElementById('finTxModalError');
+            errEl.style.display = 'none';
+            const id      = document.getElementById('finTxId').value;
+            const date    = document.getElementById('finTxFieldDate').value;
+            const account = Number(document.getElementById('finTxFieldAccount').value);
+            const type    = document.getElementById('finTxFieldType').value;
+            const amtRaw  = parseFloat(document.getElementById('finTxFieldAmount').value);
+            const cat     = document.getElementById('finTxFieldCategory').value;
+            const chk     = document.getElementById('finTxFieldCheck').value;
+            const payee   = document.getElementById('finTxFieldPayee').value.trim();
+            const memo    = document.getElementById('finTxFieldMemo').value.trim();
+            const rec     = document.getElementById('finTxFieldReconciled').value;
+            if (!date || !account || isNaN(amtRaw) || amtRaw < 0) {
+                errEl.textContent = 'Date, account, and a non-negative amount are required.';
+                errEl.style.display = 'block';
+                return;
+            }
+            const amount = type === 'deposit' ? amtRaw : -amtRaw;
+            const body = {
+                date, account_id: account, amount,
+                category_id: cat ? Number(cat) : null,
+                payee: payee || null,
+                memo: memo || null,
+                check_number: chk ? Number(chk) : null,
+                reconciled_on: rec || null,
+            };
+            try {
+                const url = id
+                    ? `${API_URL}/api/admin/finance/transactions/${id}`
+                    : `${API_URL}/api/admin/finance/transactions`;
+                const res = await fetch(url, {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(body),
+                });
+                if (res.status === 401) { logout('Session expired. Please sign in again.'); return; }
+                if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+                closeModal('finTxModal');
+                finDashLoaded = false;                // dashboard will refresh next visit
+                loadFinanceTransactions();
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        async function deleteFinTx() {
+            const id = document.getElementById('finTxId').value;
+            if (!id) return;
+            if (!confirm('Delete this transaction? This cannot be undone.')) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/transactions/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                closeModal('finTxModal');
+                finDashLoaded = false;
+                loadFinanceTransactions();
+            } catch (err) {
+                alert('Could not delete: ' + err.message);
+            }
+        }
+
+        // Attachments -----------------------------------------------------
+        async function loadFinTxAttachments(txId) {
+            const listEl = document.getElementById('finTxAttachList');
+            listEl.innerHTML = '<span style="color:var(--gray-600);">Loading…</span>';
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/transactions/${txId}/attachments`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const rows = await res.json();
+                if (!rows.length) { listEl.innerHTML = '<span style="color:var(--gray-600);">No attachments.</span>'; return; }
+                listEl.innerHTML = rows.map(a => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--gray-200);">
+                        <i class="fas fa-file"></i>
+                        <a href="#" onclick="downloadFinAttachment(${a.id}); return false;">${escapeHtml(a.filename)}</a>
+                        <span style="color:var(--gray-600);font-size:11px;">(${Math.round(a.b64_len * 0.75 / 1024)} KB, ${a.mime_type})</span>
+                        <button class="btn btn-danger btn-sm" style="margin-left:auto;padding:2px 8px;font-size:11px;"
+                            onclick="deleteFinAttachment(${a.id}, ${txId})"><i class="fas fa-trash"></i></button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                listEl.innerHTML = '<span style="color:#b0212a;">' + escapeHtml(err.message) + '</span>';
+            }
+        }
+
+        async function uploadFinTxAttachment(ev) {
+            const txId = document.getElementById('finTxId').value;
+            if (!txId) { alert('Save the transaction first, then attach files.'); return; }
+            const file = ev.target.files[0];
+            ev.target.value = '';   // clear so re-picking the same file re-fires change
+            if (!file) return;
+            if (file.size > 512 * 1024) { alert('File too large (max 500 KB).'); return; }
+            const bytes_b64 = await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result.split(',', 2)[1]);
+                r.onerror = reject;
+                r.readAsDataURL(file);
+            });
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/attachments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        transaction_id: Number(txId),
+                        filename: file.name,
+                        mime_type: file.type || 'application/octet-stream',
+                        bytes_b64,
+                    }),
+                });
+                if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+                loadFinTxAttachments(txId);
+            } catch (err) {
+                alert('Upload failed: ' + err.message);
+            }
+        }
+
+        async function downloadFinAttachment(id) {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/attachments/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                const cd = res.headers.get('Content-Disposition') || '';
+                const m  = cd.match(/filename="([^"]+)"/);
+                const name = m ? m[1] : 'attachment';
+                const u = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = u; a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(u), 1000);
+            } catch (err) { alert('Download failed: ' + err.message); }
+        }
+
+        async function deleteFinAttachment(id, txId) {
+            if (!confirm('Delete this attachment?')) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/attachments/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                loadFinTxAttachments(txId);
+            } catch (err) { alert('Delete failed: ' + err.message); }
+        }
+
+        // Live CSV export
+        async function downloadLedgerCsv(year) {
+            try {
+                const q = year ? `?year=${year}` : '';
+                const res = await fetch(`${API_URL}/api/admin/finance/export/csv${q}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (res.status === 401) { logout('Session expired. Please sign in again.'); return; }
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                const cd = res.headers.get('Content-Disposition') || '';
+                const m  = cd.match(/filename="([^"]+)"/);
+                const name = m ? m[1] : `ledger_${year || 'all'}.csv`;
+                const u = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = u; a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(u), 1000);
+            } catch (err) { alert('CSV export failed: ' + err.message); }
         }
 
         // Download a ledger workbook. Uses fetch (not a plain link) so the bearer
@@ -2953,6 +3299,9 @@
         // Helpers
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
+        }
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
         }
 
         function formatDate(dateStr) {
