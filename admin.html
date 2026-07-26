@@ -973,6 +973,13 @@
                             <select id="finTxCategory"><option value="">All</option></select>
                         </div>
                         <div>
+                            <label>Card</label>
+                            <select id="finTxCard">
+                                <option value="">All</option>
+                                <option value="__any__">— Any card —</option>
+                            </select>
+                        </div>
+                        <div>
                             <label>From</label>
                             <input type="date" id="finTxFrom">
                         </div>
@@ -1521,6 +1528,10 @@
                     <div>
                         <label style="font-size:12px;color:var(--gray-600);">Check #</label>
                         <input type="number" id="finTxFieldCheck" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="optional">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--gray-600);">Card last 4</label>
+                        <input type="text" maxlength="4" id="finTxFieldCard" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="e.g. 1651">
                     </div>
                     <div style="grid-column:1/-1;">
                         <label style="font-size:12px;color:var(--gray-600);">Payee</label>
@@ -2128,12 +2139,13 @@
             const tbl = document.getElementById('finRecentTable');
             tbl.innerHTML = `
                 <thead><tr>
-                    <th>Date</th><th>Account</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th>
+                    <th>Date</th><th>Account</th><th>Card</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th>
                 </tr></thead>
                 <tbody>` +
                 d.recent.map(r => `<tr>
                     <td>${r.date}</td>
                     <td>${escapeHtml(r.account || '')}</td>
+                    <td>${r.card_last4 ? '····' + escapeHtml(r.card_last4) : ''}</td>
                     <td>${escapeHtml(r.category || '—')}</td>
                     <td>${escapeHtml(r.payee || '—')}</td>
                     <td>${escapeHtml(r.memo || '')}</td>
@@ -2149,12 +2161,13 @@
             finTxInited = true;
             try {
                 if (!finCategoriesCache) {
-                    const [accts, cats] = await Promise.all([
-                        fetch(`${API_URL}/api/admin/finance/accounts`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+                    const [accts, cats, cards] = await Promise.all([
+                        fetch(`${API_URL}/api/admin/finance/accounts`,   { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
                         fetch(`${API_URL}/api/admin/finance/categories`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+                        fetch(`${API_URL}/api/admin/finance/cards`,      { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
                     ]);
                     const acctSel = document.getElementById('finTxAccount');
-                    accts.forEach(a => {
+                    accts.filter(a => a.active).forEach(a => {
                         const opt = document.createElement('option');
                         opt.value = a.id; opt.textContent = a.name;
                         acctSel.appendChild(opt);
@@ -2165,6 +2178,13 @@
                         opt.value = c.id;
                         opt.textContent = (c.parent_id ? '  ↳ ' : '') + c.name + '  (' + c.kind + ')';
                         catSel.appendChild(opt);
+                    });
+                    const cardSel = document.getElementById('finTxCard');
+                    cards.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.card_last4;
+                        opt.textContent = `····${c.card_last4}  (${c.tx_count} tx · $${Number(c.gross_spend).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} spend)`;
+                        cardSel.appendChild(opt);
                     });
                     finCategoriesCache = cats;
                 }
@@ -2183,11 +2203,13 @@
             const params = new URLSearchParams();
             const acct = document.getElementById('finTxAccount').value;
             const cat  = document.getElementById('finTxCategory').value;
+            const card = document.getElementById('finTxCard').value;
             const from = document.getElementById('finTxFrom').value;
             const to   = document.getElementById('finTxTo').value;
             const q    = document.getElementById('finTxSearch').value.trim();
             if (acct) params.set('account', acct);
             if (cat)  params.set('category', cat);
+            if (card) params.set('card', card);
             if (from) params.set('from', from);
             if (to)   params.set('to', to);
             if (q)    params.set('search', q);
@@ -2256,13 +2278,14 @@
             const tbl = document.getElementById('finTxTable');
             tbl.innerHTML = `
                 <thead><tr>
-                    <th>Date</th><th>Account</th><th>Chk#</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th><th>Rec</th>
+                    <th>Date</th><th>Account</th><th>Chk#</th><th>Card</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th><th>Rec</th>
                 </tr></thead>
                 <tbody>` +
                 d.rows.map(r => `<tr data-txid="${r.id}" style="cursor:pointer;">
                     <td>${r.date}</td>
                     <td>${escapeHtml(r.account || '')}</td>
                     <td>${r.check_number || ''}</td>
+                    <td>${r.card_last4 ? '····' + escapeHtml(r.card_last4) : ''}</td>
                     <td>${escapeHtml(r.category || '—')}</td>
                     <td>${escapeHtml(r.payee || '—')}</td>
                     <td>${escapeHtml(r.memo || '')}</td>
@@ -2295,6 +2318,7 @@
                 document.getElementById('finTxFieldAmount').value = Math.abs(row.amount).toFixed(2);
                 document.getElementById('finTxFieldCategory').value = row.category_id ? String(row.category_id) : '';
                 document.getElementById('finTxFieldCheck').value = row.check_number || '';
+                document.getElementById('finTxFieldCard').value = row.card_last4 || '';
                 document.getElementById('finTxFieldPayee').value = row.payee || '';
                 document.getElementById('finTxFieldMemo').value = row.memo || '';
                 document.getElementById('finTxFieldReconciled').value = row.reconciled_on || '';
@@ -2310,6 +2334,7 @@
                 document.getElementById('finTxFieldAmount').value = '';
                 document.getElementById('finTxFieldCategory').value = '';
                 document.getElementById('finTxFieldCheck').value = '';
+                document.getElementById('finTxFieldCard').value = '';
                 document.getElementById('finTxFieldPayee').value = '';
                 document.getElementById('finTxFieldMemo').value = '';
                 document.getElementById('finTxFieldReconciled').value = '';
@@ -2329,6 +2354,7 @@
             const amtRaw  = parseFloat(document.getElementById('finTxFieldAmount').value);
             const cat     = document.getElementById('finTxFieldCategory').value;
             const chk     = document.getElementById('finTxFieldCheck').value;
+            const card    = document.getElementById('finTxFieldCard').value.trim();
             const payee   = document.getElementById('finTxFieldPayee').value.trim();
             const memo    = document.getElementById('finTxFieldMemo').value.trim();
             const rec     = document.getElementById('finTxFieldReconciled').value;
@@ -2344,6 +2370,7 @@
                 payee: payee || null,
                 memo: memo || null,
                 check_number: chk ? Number(chk) : null,
+                card_last4: card || null,
                 reconciled_on: rec || null,
             };
             try {
@@ -2534,7 +2561,7 @@
             const tbl = document.getElementById('finImportTable');
             tbl.innerHTML = `
                 <thead><tr>
-                    <th></th><th>Date</th><th>Type</th><th>Chk#</th><th>Memo</th><th>Payee</th><th>Category</th><th class="num">Amount</th>
+                    <th></th><th>Date</th><th>Type</th><th>Chk#</th><th>Card</th><th>Memo</th><th>Payee</th><th>Category</th><th class="num">Amount</th>
                 </tr></thead>
                 <tbody>` +
                 rows.map(r => `<tr data-idx="${r.row_index}" style="${r.is_duplicate ? 'opacity:.5;' : ''}">
@@ -2542,6 +2569,7 @@
                     <td>${r.date}</td>
                     <td>${escapeHtml(r.type || '')}</td>
                     <td>${r.check_number || ''}</td>
+                    <td>${r.card_last4 ? '····' + escapeHtml(r.card_last4) : ''}</td>
                     <td>${escapeHtml(r.memo || '').slice(0, 60)}</td>
                     <td><input type="text" class="fin-imp-payee" data-idx="${r.row_index}" value="${escapeHtml(r.payee || '')}" style="width:100%;padding:2px 4px;font-size:12px;border:1px solid var(--gray-300);border-radius:4px;"></td>
                     <td><select class="fin-imp-cat" data-idx="${r.row_index}" style="width:100%;padding:2px 4px;font-size:12px;border:1px solid var(--gray-300);border-radius:4px;">${finImportCatOptions}</select></td>
