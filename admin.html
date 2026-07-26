@@ -937,6 +937,8 @@
                 <div class="subtabs" id="financeSubtabs">
                     <button class="subtab active" data-sub="dashboard"><i class="fas fa-gauge-high"></i> Dashboard</button>
                     <button class="subtab" data-sub="transactions"><i class="fas fa-list"></i> Transactions</button>
+                    <button class="subtab" data-sub="import"><i class="fas fa-file-import"></i> Import CSV</button>
+                    <button class="subtab" data-sub="reconcile"><i class="fas fa-square-check"></i> Reconcile</button>
                     <button class="subtab" data-sub="officer"><i class="fas fa-file-invoice-dollar"></i> Officer Report</button>
                     <button class="subtab" data-sub="downloads"><i class="fas fa-download"></i> Downloads</button>
                 </div>
@@ -993,6 +995,87 @@
                     <div id="finTxMeta" style="font-size:12px;color:var(--gray-600);margin-bottom:8px;"></div>
                     <div style="overflow-x:auto;max-height:65vh;">
                         <table class="fin-table" id="finTxTable"></table>
+                    </div>
+                </div>
+
+                <!-- Import CSV -->
+                <div class="subpanel" id="finSubImport">
+                    <h3 style="margin:0 0 8px;color:var(--navy);font-size:16px;">Upload a bank CSV export</h3>
+                    <p style="color:var(--gray-600);margin-bottom:12px;font-size:13px;">
+                        Rows that already exist (matched by the bank's transaction ID) are auto-detected as duplicates and will not be re-imported. Every import creates a batch you can roll back below.
+                    </p>
+                    <div class="fin-filters">
+                        <div>
+                            <label>Account</label>
+                            <select id="finImportAccount"></select>
+                        </div>
+                        <div style="flex:1;min-width:220px;">
+                            <label>CSV file</label>
+                            <input type="file" id="finImportFile" accept=".csv,text/csv">
+                        </div>
+                        <div>
+                            <button class="btn btn-primary btn-sm" onclick="previewFinanceImport()"><i class="fas fa-eye"></i> Preview</button>
+                        </div>
+                    </div>
+                    <div id="finImportError" class="error-msg" style="display:none;"></div>
+
+                    <div id="finImportPreview" style="display:none;">
+                        <div class="fin-cards" id="finImportSummary"></div>
+                        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+                            <label style="font-size:13px;">
+                                <input type="checkbox" id="finImportShowDupes" onchange="renderImportPreview()"> show duplicates
+                            </label>
+                            <div style="margin-left:auto;">
+                                <button class="btn btn-secondary btn-sm" onclick="cancelFinanceImport()">Cancel</button>
+                                <button class="btn btn-primary btn-sm" onclick="commitFinanceImport()"><i class="fas fa-check"></i> Commit new rows</button>
+                            </div>
+                        </div>
+                        <div style="overflow-x:auto;max-height:55vh;">
+                            <table class="fin-table" id="finImportTable"></table>
+                        </div>
+                    </div>
+
+                    <h3 style="margin:24px 0 8px;color:var(--navy);font-size:16px;">Prior imports</h3>
+                    <div style="overflow-x:auto;">
+                        <table class="fin-table" id="finImportBatches"></table>
+                    </div>
+                </div>
+
+                <!-- Reconcile -->
+                <div class="subpanel" id="finSubReconcile">
+                    <h3 style="margin:0 0 8px;color:var(--navy);font-size:16px;">Match your books to a bank statement</h3>
+                    <p style="color:var(--gray-600);margin-bottom:12px;font-size:13px;">
+                        Pick an account, enter the statement's closing date and ending balance, then check off each transaction on the statement. When the "Selected" total ties to the statement, click Save.
+                    </p>
+                    <div class="fin-filters">
+                        <div>
+                            <label>Account</label>
+                            <select id="finRecAccount"></select>
+                        </div>
+                        <div>
+                            <label>Statement date</label>
+                            <input type="date" id="finRecDate">
+                        </div>
+                        <div>
+                            <label>Statement ending balance</label>
+                            <input type="number" step="0.01" id="finRecEnding" placeholder="0.00">
+                        </div>
+                        <div>
+                            <button class="btn btn-primary btn-sm" onclick="loadReconcileCandidates()"><i class="fas fa-list-check"></i> Load</button>
+                        </div>
+                    </div>
+                    <div id="finRecError" class="error-msg" style="display:none;"></div>
+
+                    <div id="finRecResult" style="display:none;">
+                        <div class="fin-cards" id="finRecCards"></div>
+                        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+                            <label style="font-size:13px;"><input type="checkbox" id="finRecSelectAll" onchange="finRecToggleAll(this.checked)"> select / clear all</label>
+                            <div id="finRecStatus" style="margin-left:auto;font-size:13px;font-weight:600;"></div>
+                            <button class="btn btn-primary btn-sm" onclick="saveReconcile()"><i class="fas fa-save"></i> Save reconciliation</button>
+                        </div>
+                        <div style="overflow-x:auto;max-height:55vh;">
+                            <table class="fin-table" id="finRecTable"></table>
+                        </div>
                     </div>
                 </div>
 
@@ -1947,6 +2030,8 @@
             const map = {
                 dashboard: 'finSubDashboard',
                 transactions: 'finSubTransactions',
+                import: 'finSubImport',
+                reconcile: 'finSubReconcile',
                 officer: 'finSubOfficer',
                 downloads: 'finSubDownloads',
             };
@@ -1967,6 +2052,8 @@
             // Lazy-load on first visit.
             if (name === 'dashboard') loadFinanceDashboard();
             if (name === 'transactions') initFinanceTransactions();
+            if (name === 'import') initFinanceImport();
+            if (name === 'reconcile') initFinanceReconcile();
             if (name === 'officer') loadFinanceReport();
         }
 
@@ -2381,6 +2468,322 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 loadFinTxAttachments(txId);
             } catch (err) { alert('Delete failed: ' + err.message); }
+        }
+
+        // =========================================================
+        // Import CSV
+        // =========================================================
+        let finImportInited = false;
+        let finImportPreview = null;   // { batch_summary, rows }
+        let finImportCatOptions = '';
+
+        async function initFinanceImport() {
+            if (!finTxInited) await initFinanceTransactions();  // shares Accounts + Categories fetch
+            if (finImportInited) return;
+            finImportInited = true;
+            // Populate account picker
+            const acctSel = document.getElementById('finImportAccount');
+            const accts = Array.from(document.getElementById('finTxAccount').options).slice(1);
+            acctSel.innerHTML = accts.map(o => `<option value="${o.value}">${escapeHtml(o.textContent)}</option>`).join('');
+            // Category options cached for per-row selects
+            const cats = Array.from(document.getElementById('finTxCategory').options).slice(1);
+            finImportCatOptions = '<option value="">(unmapped)</option>' +
+                cats.map(o => `<option value="${o.value}">${escapeHtml(o.textContent)}</option>`).join('');
+            loadImportBatches();
+        }
+
+        async function previewFinanceImport() {
+            const errEl = document.getElementById('finImportError');
+            errEl.style.display = 'none';
+            const acct = Number(document.getElementById('finImportAccount').value);
+            const fileEl = document.getElementById('finImportFile');
+            if (!fileEl.files.length) { errEl.textContent = 'Choose a CSV file first.'; errEl.style.display = 'block'; return; }
+            const file = fileEl.files[0];
+            const csv = await file.text();
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/import/preview`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ account_id: acct, filename: file.name, csv }),
+                });
+                if (res.status === 401) { logout('Session expired.'); return; }
+                if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+                finImportPreview = await res.json();
+                document.getElementById('finImportPreview').style.display = 'block';
+                renderImportPreview();
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        function renderImportPreview() {
+            if (!finImportPreview) return;
+            const p = finImportPreview;
+            const s = p.batch_summary;
+            const cards = document.getElementById('finImportSummary');
+            cards.innerHTML = `
+                <div class="fin-card"><div class="lbl">File</div><div class="val" style="font-size:14px;">${escapeHtml(s.filename)}</div><div class="sub">${escapeHtml(s.account_name)}</div></div>
+                <div class="fin-card"><div class="lbl">Rows</div><div class="val">${s.total_rows}</div><div class="sub">${s.new_rows} new · ${s.duplicate_rows} duplicate</div></div>
+                <div class="fin-card income"><div class="lbl">Deposits</div><div class="val">${fmtMoney(s.deposits)}</div></div>
+                <div class="fin-card expense"><div class="lbl">Withdrawals</div><div class="val">${fmtMoney(s.withdrawals)}</div></div>
+                <div class="fin-card"><div class="lbl">Date range</div><div class="val" style="font-size:14px;">${s.date_range[0] || '—'} → ${s.date_range[1] || '—'}</div></div>
+            `;
+            const showDupes = document.getElementById('finImportShowDupes').checked;
+            const rows = p.rows.filter(r => showDupes || !r.is_duplicate);
+            const tbl = document.getElementById('finImportTable');
+            tbl.innerHTML = `
+                <thead><tr>
+                    <th></th><th>Date</th><th>Type</th><th>Chk#</th><th>Memo</th><th>Payee</th><th>Category</th><th class="num">Amount</th>
+                </tr></thead>
+                <tbody>` +
+                rows.map(r => `<tr data-idx="${r.row_index}" style="${r.is_duplicate ? 'opacity:.5;' : ''}">
+                    <td>${r.is_duplicate ? '<span title="already imported" style="color:var(--gray-600);">dup</span>' : (r.category_source === 'rule' ? '<span title="matched a rule" style="color:#0a7a3a;">rule</span>' : '')}</td>
+                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.type || '')}</td>
+                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.memo || '').slice(0, 60)}</td>
+                    <td><input type="text" class="fin-imp-payee" data-idx="${r.row_index}" value="${escapeHtml(r.payee || '')}" style="width:100%;padding:2px 4px;font-size:12px;border:1px solid var(--gray-300);border-radius:4px;"></td>
+                    <td><select class="fin-imp-cat" data-idx="${r.row_index}" style="width:100%;padding:2px 4px;font-size:12px;border:1px solid var(--gray-300);border-radius:4px;">${finImportCatOptions}</select></td>
+                    <td class="num ${r.amount >= 0 ? 'fin-amt-pos' : 'fin-amt-neg'}">${fmtMoney(r.amount)}</td>
+                </tr>`).join('') +
+                `</tbody>`;
+            // Set the selected category per row after the innerHTML pass.
+            rows.forEach(r => {
+                const sel = tbl.querySelector(`select.fin-imp-cat[data-idx="${r.row_index}"]`);
+                if (sel && r.category_id) sel.value = String(r.category_id);
+            });
+        }
+
+        function cancelFinanceImport() {
+            finImportPreview = null;
+            document.getElementById('finImportPreview').style.display = 'none';
+            document.getElementById('finImportFile').value = '';
+        }
+
+        async function commitFinanceImport() {
+            if (!finImportPreview) return;
+            const p = finImportPreview;
+            const s = p.batch_summary;
+            const tbl = document.getElementById('finImportTable');
+            // Merge user edits back into rows
+            const byIdx = {};
+            p.rows.forEach(r => { byIdx[r.row_index] = { ...r }; });
+            tbl.querySelectorAll('select.fin-imp-cat').forEach(sel => {
+                const r = byIdx[Number(sel.dataset.idx)];
+                if (r) r.category_id = sel.value ? Number(sel.value) : null;
+            });
+            tbl.querySelectorAll('input.fin-imp-payee').forEach(inp => {
+                const r = byIdx[Number(inp.dataset.idx)];
+                if (r) r.payee = inp.value.trim() || null;
+            });
+            const commitRows = Object.values(byIdx).filter(r => !r.is_duplicate);
+            if (!commitRows.length) { alert('Nothing to import (all rows were duplicates).'); return; }
+            if (!confirm(`Commit ${commitRows.length} new transactions to "${s.account_name}"?`)) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/import/commit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ account_id: s.account_id, filename: s.filename, rows: commitRows }),
+                });
+                if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+                const r = await res.json();
+                alert(`Imported ${r.inserted} transaction(s)${r.skipped ? ` — ${r.skipped} skipped as duplicates` : ''}. Batch #${r.batch_id}.`);
+                cancelFinanceImport();
+                loadImportBatches();
+                finDashLoaded = false;
+                if (finTxInited) loadFinanceTransactions();
+            } catch (err) {
+                alert('Commit failed: ' + err.message);
+            }
+        }
+
+        async function loadImportBatches() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/import/batches`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const rows = await res.json();
+                const tbl = document.getElementById('finImportBatches');
+                if (!rows.length) { tbl.innerHTML = '<tbody><tr><td style="color:var(--gray-600);">No prior imports.</td></tr></tbody>'; return; }
+                tbl.innerHTML = `
+                    <thead><tr>
+                        <th>#</th><th>When</th><th>Account</th><th>Filename</th><th class="num">Rows</th><th class="num">Deposits</th><th class="num">Withdrawals</th><th></th>
+                    </tr></thead>
+                    <tbody>` +
+                    rows.map(b => `<tr>
+                        <td>${b.id}</td>
+                        <td>${b.imported_at}</td>
+                        <td>${escapeHtml(b.account || '')}</td>
+                        <td>${escapeHtml(b.filename)}</td>
+                        <td class="num">${b.tx_count}</td>
+                        <td class="num fin-amt-pos">${fmtMoney(b.deposits)}</td>
+                        <td class="num fin-amt-neg">${fmtMoney(-b.withdrawals)}</td>
+                        <td><button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:11px;" onclick="rollbackImport(${b.id})"><i class="fas fa-undo"></i> Rollback</button></td>
+                    </tr>`).join('') +
+                    `</tbody>`;
+            } catch (err) {
+                document.getElementById('finImportBatches').innerHTML =
+                    `<tbody><tr><td style="color:#b0212a;">${escapeHtml(err.message)}</td></tr></tbody>`;
+            }
+        }
+
+        async function rollbackImport(id) {
+            if (!confirm(`Rollback import batch #${id}? This deletes every transaction from that batch.`)) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/import/batches/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const r = await res.json();
+                alert(`Rolled back batch #${id} (removed ${r.deleted_transactions} transactions).`);
+                loadImportBatches();
+                finDashLoaded = false;
+                if (finTxInited) loadFinanceTransactions();
+            } catch (err) {
+                alert('Rollback failed: ' + err.message);
+            }
+        }
+
+        // =========================================================
+        // Reconcile
+        // =========================================================
+        let finRecInited = false;
+        let finRecCandidates = null;
+
+        async function initFinanceReconcile() {
+            if (!finTxInited) await initFinanceTransactions();
+            if (finRecInited) return;
+            finRecInited = true;
+            const acctSel = document.getElementById('finRecAccount');
+            const accts = Array.from(document.getElementById('finTxAccount').options).slice(1);
+            acctSel.innerHTML = accts.map(o => `<option value="${o.value}">${escapeHtml(o.textContent)}</option>`).join('');
+            document.getElementById('finRecDate').value = new Date().toISOString().slice(0, 10);
+        }
+
+        async function loadReconcileCandidates() {
+            const errEl = document.getElementById('finRecError');
+            errEl.style.display = 'none';
+            const acct = Number(document.getElementById('finRecAccount').value);
+            const date = document.getElementById('finRecDate').value;
+            if (!acct || !date) { errEl.textContent = 'Account and statement date are required.'; errEl.style.display = 'block'; return; }
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/reconcile/candidates?account=${acct}&as_of=${date}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout('Session expired.'); return; }
+                if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+                finRecCandidates = await res.json();
+                renderReconcile();
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        function renderReconcile() {
+            const d = finRecCandidates;
+            document.getElementById('finRecResult').style.display = 'block';
+            const ending = parseFloat(document.getElementById('finRecEnding').value) || 0;
+            const cards = document.getElementById('finRecCards');
+            cards.innerHTML = `
+                <div class="fin-card"><div class="lbl">Book balance (as of ${d.as_of})</div><div class="val">${fmtMoney(d.book_balance_as_of)}</div><div class="sub">from D1 ledger</div></div>
+                <div class="fin-card"><div class="lbl">Already reconciled</div><div class="val">${fmtMoney(d.reconciled_balance)}</div><div class="sub">${d.account.name} · opened ${fmtMoney(d.account.opening_bal)}</div></div>
+                <div class="fin-card"><div class="lbl">Statement ending</div><div class="val">${ending ? fmtMoney(ending) : '—'}</div><div class="sub">enter above</div></div>
+                <div class="fin-card" id="finRecSelectedCard"><div class="lbl">If I check all selected</div><div class="val" id="finRecProjected">—</div><div class="sub" id="finRecDiff">select rows below</div></div>
+            `;
+            const tbl = document.getElementById('finRecTable');
+            tbl.innerHTML = `
+                <thead><tr>
+                    <th></th><th>Date</th><th>Chk#</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th>
+                </tr></thead>
+                <tbody>` +
+                d.unreconciled.map(r => `<tr>
+                    <td><input type="checkbox" class="fin-rec-chk" data-id="${r.id}" data-amt="${r.amount}" onchange="finRecRecalc()"></td>
+                    <td>${r.date}</td>
+                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.category || '—')}</td>
+                    <td>${escapeHtml(r.payee || '—')}</td>
+                    <td>${escapeHtml(r.memo || '')}</td>
+                    <td class="num ${r.amount >= 0 ? 'fin-amt-pos' : 'fin-amt-neg'}">${fmtMoney(r.amount)}</td>
+                </tr>`).join('') +
+                `</tbody>`;
+            finRecRecalc();
+        }
+
+        function finRecRecalc() {
+            if (!finRecCandidates) return;
+            const d = finRecCandidates;
+            const ending = parseFloat(document.getElementById('finRecEnding').value) || 0;
+            let selectedDelta = 0;
+            document.querySelectorAll('#finRecTable .fin-rec-chk').forEach(cb => {
+                if (cb.checked) selectedDelta += parseFloat(cb.dataset.amt);
+            });
+            const projected = d.reconciled_balance + selectedDelta;
+            document.getElementById('finRecProjected').textContent = fmtMoney(projected);
+            const diff = ending ? projected - ending : null;
+            const card = document.getElementById('finRecSelectedCard');
+            const diffEl = document.getElementById('finRecDiff');
+            const statusEl = document.getElementById('finRecStatus');
+            if (ending) {
+                if (Math.abs(diff) < 0.005) {
+                    card.className = 'fin-card income';
+                    diffEl.textContent = 'ties to the penny ✓';
+                    statusEl.textContent = 'Ready to save';
+                    statusEl.style.color = '#0a7a3a';
+                } else {
+                    card.className = 'fin-card neg';
+                    diffEl.textContent = 'differs by ' + fmtMoney(diff);
+                    statusEl.textContent = 'Off by ' + fmtMoney(diff);
+                    statusEl.style.color = '#b0212a';
+                }
+            } else {
+                card.className = 'fin-card';
+                diffEl.textContent = 'enter statement ending balance to check';
+                statusEl.textContent = '';
+            }
+        }
+
+        // Recompute when user types a new ending balance
+        document.getElementById('finRecEnding').addEventListener('input', finRecRecalc);
+
+        function finRecToggleAll(checked) {
+            document.querySelectorAll('#finRecTable .fin-rec-chk').forEach(cb => cb.checked = checked);
+            finRecRecalc();
+        }
+
+        async function saveReconcile() {
+            const ids = Array.from(document.querySelectorAll('#finRecTable .fin-rec-chk'))
+                .filter(cb => cb.checked).map(cb => Number(cb.dataset.id));
+            if (!ids.length) { alert('No transactions selected.'); return; }
+            const acct = Number(document.getElementById('finRecAccount').value);
+            const date = document.getElementById('finRecDate').value;
+            const ending = parseFloat(document.getElementById('finRecEnding').value) || 0;
+            const d = finRecCandidates;
+            const projected = d.reconciled_balance + ids.reduce((s, id) => {
+                const el = document.querySelector(`#finRecTable .fin-rec-chk[data-id="${id}"]`);
+                return s + parseFloat(el.dataset.amt);
+            }, 0);
+            if (ending && Math.abs(projected - ending) > 0.005) {
+                if (!confirm(`Selected doesn't tie to the statement (off by ${fmtMoney(projected - ending)}). Save anyway?`)) return;
+            }
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/reconcile`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ account_id: acct, statement_date: date, tx_ids: ids }),
+                });
+                if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+                const r = await res.json();
+                alert(`Reconciled ${r.updated} transaction(s) as of ${date}.`);
+                loadReconcileCandidates();
+                finDashLoaded = false;
+                if (finTxInited) loadFinanceTransactions();
+            } catch (err) {
+                alert('Save failed: ' + err.message);
+            }
         }
 
         // Live CSV export
