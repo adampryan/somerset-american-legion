@@ -1674,14 +1674,14 @@
         // ============ BAR / POS MANAGEMENT ============
         let posMenuData = [];
         function money(c) { return '$' + (c / 100).toFixed(2); }
-        function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+        function esc(s) { return escapeHtml(s); }  // alias — complete escaper defined below
 
         // Clickable proportion bars that drill into a dimension (item / category / method).
         function renderBars(elId, rows, dim) {
             const el = document.getElementById(elId);
             if (!rows.length) { el.innerHTML = '<span style="color:#999">No sales in range</span>'; return; }
             const max = Math.max(...rows.map(r => r.value), 1);
-            el.innerHTML = rows.map(r => `<div class="bar-row clickable" data-key="${esc(r.key)}" title="Click for detail"><span class="lbl" title="${esc(r.label)}">${r.label}</span><span class="track"><span class="fill" style="width:${Math.max(3, Math.round(r.value / max * 100))}%"></span></span><span class="val">${r.extra}</span></div>`).join('');
+            el.innerHTML = rows.map(r => `<div class="bar-row clickable" data-key="${esc(r.key)}" title="Click for detail"><span class="lbl" title="${esc(r.label)}">${escapeHtml(r.label)}</span><span class="track"><span class="fill" style="width:${Math.max(3, Math.round(r.value / max * 100))}%"></span></span><span class="val">${r.extra}</span></div>`).join('');
             el.querySelectorAll('.bar-row.clickable').forEach(x => x.addEventListener('click', () => openDrill(dim, x.dataset.key)));
         }
 
@@ -1694,15 +1694,15 @@
         async function openDrill(dim, key) {
             lastDrill = { dim, key };
             const from = document.getElementById('posFrom').value, to = document.getElementById('posTo').value;
-            const badge = m => (m || '').split(',').filter(Boolean).map(x => `<span class="badge badge-approved">${x.toUpperCase()}</span>`).join(' ') || '—';
+            const badge = m => (m || '').split(',').filter(Boolean).map(x => `<span class="badge badge-approved">${escapeHtml(x.toUpperCase())}</span>`).join(' ') || '—';
             const dt = t => new Date(t + 'Z').toLocaleString();
             const cap = s => String(s).charAt(0).toUpperCase() + String(s).slice(1);
             const cfg = {
-                item: { title: `${key} — sales`, sum: d => `${d.summary.qty} sold &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} sale(s)`, headers: ['When', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.qty, money(s.line_total), badge(s.methods), olink(s.order_id)] },
-                category: { title: `${cap(key)} — category sales`, sum: d => `${d.summary.qty} items &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} line(s)`, headers: ['When', 'Item', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.item, s.qty, money(s.line_total), badge(s.methods), olink(s.order_id)] },
-                method: { title: `${String(key).toUpperCase()} — payments`, sum: d => `${d.summary.count} payment(s) &middot; <strong>${money(d.summary.revenue)}</strong> collected`, headers: ['When', 'Order', 'Amount', 'Tip', 'Total'], row: s => [dt(s.paid_at), olink(s.order_id), money(s.amount), money(s.tip), money(s.amount + s.tip)] },
-                day: { title: `${key} — orders`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${money(d.summary.tips)} tips`, headers: ['Time', 'Order', 'Items', 'Total', 'Payment'], row: s => [dt(s.paid_at), olink(s.order_id), s.item_count, money(s.subtotal + s.tip), badge(s.methods)] },
-                bartender: { title: `${key} — sales`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; <strong>${money(d.summary.tips)}</strong> tips`, headers: ['When', 'Order', 'Items', 'Tip', 'Total', 'Payment'], row: s => [dt(s.paid_at), olink(s.order_id), s.item_count, money(s.tip), money(s.subtotal + s.tip), badge(s.methods)] },
+                item: { title: `${escapeHtml(key)} — sales`, sum: d => `${d.summary.qty} sold &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} sale(s)`, headers: ['When', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), s.qty, money(s.line_total), badge(s.methods), olink(s.order_id)] },
+                category: { title: `${escapeHtml(cap(key))} — category sales`, sum: d => `${d.summary.qty} items &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${d.summary.count} line(s)`, headers: ['When', 'Item', 'Qty', 'Amount', 'Payment', 'Order'], row: s => [dt(s.paid_at), escapeHtml(s.item), s.qty, money(s.line_total), badge(s.methods), olink(s.order_id)] },
+                method: { title: `${escapeHtml(String(key).toUpperCase())} — payments`, sum: d => `${d.summary.count} payment(s) &middot; <strong>${money(d.summary.revenue)}</strong> collected`, headers: ['When', 'Order', 'Amount', 'Tip', 'Total'], row: s => [dt(s.paid_at), olink(s.order_id), money(s.amount), money(s.tip), money(s.amount + s.tip)] },
+                day: { title: `${escapeHtml(key)} — orders`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; ${money(d.summary.tips)} tips`, headers: ['Time', 'Order', 'Items', 'Total', 'Payment'], row: s => [dt(s.paid_at), olink(s.order_id), s.item_count, money(s.subtotal + s.tip), badge(s.methods)] },
+                bartender: { title: `${escapeHtml(key)} — sales`, sum: d => `${d.summary.orders} order(s) &middot; <strong>${money(d.summary.revenue)}</strong> &middot; <strong>${money(d.summary.tips)}</strong> tips`, headers: ['When', 'Order', 'Items', 'Tip', 'Total', 'Payment'], row: s => [dt(s.paid_at), olink(s.order_id), s.item_count, money(s.tip), money(s.subtotal + s.tip), badge(s.methods)] },
             }[dim];
             document.getElementById('drillTitle').innerHTML = cfg.title;
             document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
@@ -1715,7 +1715,7 @@
                 const tbody = (d.sales || []).map(s => '<tr>' + cfg.row(s).map((c, i) => `<td style="text-align:${al[i]};">${c}</td>`).join('') + '</tr>').join('');
                 document.getElementById('drillBody').innerHTML = `<p style="margin:0 0 12px;color:#555;">${cfg.sum(d)}</p>${(d.sales || []).length ? `<div class="table-wrapper"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>` : '<p style="color:#999;">No sales in the selected range.</p>'}`;
                 wireOrderLinks();
-            } catch (e) { document.getElementById('drillBody').innerHTML = '<p style="color:#a00;">Could not load: ' + e.message + '</p>'; }
+            } catch (e) { document.getElementById('drillBody').innerHTML = '<p style="color:#a00;">Could not load: ' + escapeHtml(e.message) + '</p>'; }
         }
 
         // Deepest drill: one order's full detail (items + payments).
@@ -1724,17 +1724,17 @@
             document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
             document.getElementById('itemDrillModal').classList.add('active');
             const dt = t => t ? new Date(t + 'Z').toLocaleString() : '—';
-            const statusBadge = s => `<span class="badge badge-${s === 'paid' ? 'paid' : s === 'void' ? 'cancelled' : 'pending'}">${s}</span>`;
+            const statusBadge = s => `<span class="badge badge-${s === 'paid' ? 'paid' : s === 'void' ? 'cancelled' : 'pending'}">${escapeHtml(s)}</span>`;
             try {
                 const o = await api(`/api/admin/pos/order/${id}`);
                 const back = lastDrill ? `<a href="#" class="drill-back" style="font-size:.85rem;">&larr; Back to results</a>` : '';
                 document.getElementById('drillBody').innerHTML = `
                     ${back}
-                    <p style="margin:8px 0 12px;color:#555;">Status: ${statusBadge(o.status)}${o.label ? ' &middot; ' + o.label : ''}${o.server_name ? ' &middot; ' + o.server_name : ''}<br>
+                    <p style="margin:8px 0 12px;color:#555;">Status: ${statusBadge(o.status)}${o.label ? ' &middot; ' + escapeHtml(o.label) : ''}${o.server_name ? ' &middot; ' + escapeHtml(o.server_name) : ''}<br>
                         <span style="color:#888;font-size:.85rem;">Created ${dt(o.created_at)}${o.paid_at ? ' &middot; Paid ' + dt(o.paid_at) : ''}</span></p>
                     <div class="table-wrapper"><table>
                         <thead><tr><th>Item</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Price</th><th style="text-align:right;">Total</th></tr></thead>
-                        <tbody>${o.items.map(i => `<tr><td>${i.name}</td><td style="text-align:right;">${i.qty}</td><td style="text-align:right;">${money(i.unit_price)}</td><td style="text-align:right;">${money(i.line_total)}</td></tr>`).join('')}</tbody>
+                        <tbody>${o.items.map(i => `<tr><td>${escapeHtml(i.name)}</td><td style="text-align:right;">${i.qty}</td><td style="text-align:right;">${money(i.unit_price)}</td><td style="text-align:right;">${money(i.line_total)}</td></tr>`).join('')}</tbody>
                         <tfoot>
                             <tr><td colspan="3" style="text-align:right;">Subtotal</td><td style="text-align:right;">${money(o.subtotal)}</td></tr>
                             ${o.tip ? `<tr><td colspan="3" style="text-align:right;">Tip</td><td style="text-align:right;">${money(o.tip)}</td></tr>` : ''}
@@ -1743,10 +1743,10 @@
                     </table></div>
                     <h4 style="margin:14px 0 6px;">Payment${o.payments.length > 1 ? 's' : ''}</h4>
                     <div class="table-wrapper"><table><thead><tr><th>Method</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Tip</th><th>Status</th><th>When</th></tr></thead>
-                    <tbody>${o.payments.map(p => `<tr><td>${p.method.toUpperCase()}</td><td style="text-align:right;">${money(p.amount)}</td><td style="text-align:right;">${money(p.tip)}</td><td>${statusBadge(p.status)}</td><td>${dt(p.paid_at)}</td></tr>`).join('') || '<tr><td colspan="5" style="color:#999;">No payments</td></tr>'}</tbody></table></div>`;
+                    <tbody>${o.payments.map(p => `<tr><td>${escapeHtml(p.method.toUpperCase())}</td><td style="text-align:right;">${money(p.amount)}</td><td style="text-align:right;">${money(p.tip)}</td><td>${statusBadge(p.status)}</td><td>${dt(p.paid_at)}</td></tr>`).join('') || '<tr><td colspan="5" style="color:#999;">No payments</td></tr>'}</tbody></table></div>`;
                 const bl = document.querySelector('#drillBody .drill-back');
                 if (bl) bl.addEventListener('click', e => { e.preventDefault(); openDrill(lastDrill.dim, lastDrill.key); });
-            } catch (e) { document.getElementById('drillBody').innerHTML = '<p style="color:#a00;">Could not load: ' + e.message + '</p>'; }
+            } catch (e) { document.getElementById('drillBody').innerHTML = '<p style="color:#a00;">Could not load: ' + escapeHtml(e.message) + '</p>'; }
         }
 
         let lastReport = null;
@@ -1769,7 +1769,7 @@
                 document.getElementById('toOrders').textContent = d.order_count;
                 const me = currentUser && currentUser.name;
                 document.querySelector('#tipoutTable tbody').innerHTML = (d.by_bartender || []).map(x =>
-                    `<tr${x.name === me ? ' style="background:#eef4ff;font-weight:600;"' : ''}><td>${x.name}${x.name === me ? ' (you)' : ''}</td><td style="text-align:right;">${x.orders}</td><td style="text-align:right;">${money(x.gross)}</td><td style="text-align:right;">${money(x.tips)}</td></tr>`
+                    `<tr${x.name === me ? ' style="background:#eef4ff;font-weight:600;"' : ''}><td>${escapeHtml(x.name)}${x.name === me ? ' (you)' : ''}</td><td style="text-align:right;">${x.orders}</td><td style="text-align:right;">${money(x.gross)}</td><td style="text-align:right;">${money(x.tips)}</td></tr>`
                 ).join('') || '<tr><td colspan="4" style="color:#999;">No sales this day.</td></tr>';
             } catch (e) { console.error(e); }
         }
@@ -1797,7 +1797,7 @@
                 const days = r.by_day || [];
                 const byDayEl = document.getElementById('posByDay');
                 byDayEl.innerHTML = days.length
-                    ? `<table style="width:100%;font-size:.85rem;"><thead><tr><th style="text-align:left;">Day</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Gross</th><th style="text-align:right;">Tips</th></tr></thead><tbody>${days.map(d => `<tr class="day-row" data-day="${d.day}" style="cursor:pointer;"><td>${d.day}</td><td style="text-align:right;">${d.orders}</td><td style="text-align:right;">${money(d.gross)}</td><td style="text-align:right;">${money(d.tips)}</td></tr>`).join('')}</tbody></table>`
+                    ? `<table style="width:100%;font-size:.85rem;"><thead><tr><th style="text-align:left;">Day</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Gross</th><th style="text-align:right;">Tips</th></tr></thead><tbody>${days.map(d => `<tr class="day-row" data-day="${escapeHtml(d.day)}" style="cursor:pointer;"><td>${escapeHtml(d.day)}</td><td style="text-align:right;">${d.orders}</td><td style="text-align:right;">${money(d.gross)}</td><td style="text-align:right;">${money(d.tips)}</td></tr>`).join('')}</tbody></table>`
                     : '<span style="color:#999">No sales in range</span>';
                 byDayEl.querySelectorAll('.day-row').forEach(el => el.addEventListener('click', () => openDrill('day', el.dataset.day)));
                 renderBars('posByBartender', (r.by_bartender || []).map(x => ({ key: x.name, label: x.name, value: x.gross, extra: `${money(x.gross)} · ${x.orders}` })), 'bartender');
@@ -1844,7 +1844,7 @@
             try {
                 const log = await api('/api/admin/pos/inventory-log');
                 document.getElementById('invLog').innerHTML = log.map(l =>
-                    `<div style="padding:2px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${new Date(l.created_at + 'Z').toLocaleString()}</span> — <strong>${l.name || 'item'}</strong> <span style="color:${l.change < 0 ? '#a00' : '#2e7d32'};font-weight:600;">${l.change > 0 ? '+' : ''}${l.change}</span> · ${l.reason}${l.note ? ' · ' + l.note : ''}</div>`
+                    `<div style="padding:2px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#888;">${new Date(l.created_at + 'Z').toLocaleString()}</span> — <strong>${escapeHtml(l.name || 'item')}</strong> <span style="color:${l.change < 0 ? '#a00' : '#2e7d32'};font-weight:600;">${l.change > 0 ? '+' : ''}${l.change}</span> · ${escapeHtml(l.reason)}${l.note ? ' · ' + escapeHtml(l.note) : ''}</div>`
                 ).join('') || '<span style="color:#999">No stock movements yet</span>';
             } catch (e) {}
         }
@@ -1852,13 +1852,13 @@
             const inv = await api('/api/admin/pos/inventory').catch(() => []);
             const low = inv.filter(i => i.low);
             const banner = document.getElementById('lowStockBanner');
-            if (low.length) { banner.style.display = 'block'; banner.innerHTML = `<i class="fas fa-triangle-exclamation"></i> <strong>Low stock:</strong> ${low.map(i => `${i.name} (${i.stock_qty})`).join(', ')}`; }
+            if (low.length) { banner.style.display = 'block'; banner.innerHTML = `<i class="fas fa-triangle-exclamation"></i> <strong>Low stock:</strong> ${low.map(i => `${escapeHtml(i.name)} (${i.stock_qty})`).join(', ')}`; }
             else banner.style.display = 'none';
             posMenuData = await api('/api/admin/pos/products');
             document.querySelector('#posMenuTable tbody').innerHTML = posMenuData.map(p => `
                 <tr>
-                    <td>${p.name}</td>
-                    <td>${p.category}</td>
+                    <td>${escapeHtml(p.name)}</td>
+                    <td>${escapeHtml(p.category)}</td>
                     <td>${money(p.price)}</td>
                     <td>${p.track_inventory ? `<strong>${p.stock_qty ?? 0}</strong>${(p.stock_qty != null && p.stock_qty <= 6) ? '<span class="low-badge">low</span>' : ''} <button class="btn btn-sm" title="Restock / adjust" onclick="restockProduct(${p.id})"><i class="fas fa-plus-minus"></i></button>` : '<span style="color:#999">—</span>'}</td>
                     <td><span class="badge ${p.active ? 'badge-paid' : 'badge-cancelled'}">${p.active ? 'Active' : 'Hidden'}</span></td>
@@ -1873,7 +1873,7 @@
                 const ev = await api('/api/admin/pos/events');
                 const box = document.getElementById('posEvents');
                 box.innerHTML = ev.slice(0, 60).map(e =>
-                    `<div class="ev-row${e.order_id ? ' clickable' : ''}"${e.order_id ? ` data-order="${e.order_id}"` : ''} style="padding:3px 4px;border-bottom:1px solid #f0f0f0;${e.order_id ? 'cursor:pointer;' : ''}"><span style="color:#888;">${new Date(e.created_at + 'Z').toLocaleString()}</span> — <strong>${e.event}</strong>${e.detail ? ' · ' + e.detail : ''}${e.actor ? ' · ' + e.actor : ''}${e.order_id ? ` <span style="color:#002868;font-weight:600;">#${e.order_id}</span>` : ''}</div>`
+                    `<div class="ev-row${e.order_id ? ' clickable' : ''}"${e.order_id ? ` data-order="${e.order_id}"` : ''} style="padding:3px 4px;border-bottom:1px solid #f0f0f0;${e.order_id ? 'cursor:pointer;' : ''}"><span style="color:#888;">${new Date(e.created_at + 'Z').toLocaleString()}</span> — <strong>${escapeHtml(e.event)}</strong>${e.detail ? ' · ' + escapeHtml(e.detail) : ''}${e.actor ? ' · ' + escapeHtml(e.actor) : ''}${e.order_id ? ` <span style="color:#002868;font-weight:600;">#${e.order_id}</span>` : ''}</div>`
                 ).join('') || '<span style="color:#999">No activity yet</span>';
                 box.querySelectorAll('.ev-row.clickable').forEach(el => el.addEventListener('click', () => openOrder(el.dataset.order)));
             } catch (e) {}
@@ -2120,9 +2120,9 @@
             accts.innerHTML = d.accounts.filter(a => a.active).map(a => {
                 const cls = a.current_bal < 0 ? 'fin-card neg' : 'fin-card';
                 return `<div class="${cls}">
-                    <div class="lbl">${a.name}</div>
+                    <div class="lbl">${escapeHtml(a.name)}</div>
                     <div class="val">${fmtMoney(a.current_bal)}</div>
-                    <div class="sub">${a.type} • opened ${a.opening_date} @ ${fmtMoney(a.opening_bal)}</div>
+                    <div class="sub">${escapeHtml(a.type)} • opened ${escapeHtml(a.opening_date)} @ ${fmtMoney(a.opening_bal)}</div>
                 </div>`;
             }).join('');
 
@@ -2134,12 +2134,12 @@
                 <div class="fin-card income">
                     <div class="lbl">${d.year} Income</div>
                     <div class="val">${fmtMoney(y.income)}</div>
-                    <div class="sub">as of ${d.as_of}</div>
+                    <div class="sub">as of ${escapeHtml(d.as_of)}</div>
                 </div>
                 <div class="fin-card expense">
                     <div class="lbl">${d.year} Expense</div>
                     <div class="val">${fmtMoney(y.expense)}</div>
-                    <div class="sub">as of ${d.as_of}</div>
+                    <div class="sub">as of ${escapeHtml(d.as_of)}</div>
                 </div>
                 <div class="${netCls}">
                     <div class="lbl">${d.year} Net</div>
@@ -2160,7 +2160,7 @@
                 </tr></thead>
                 <tbody>` +
                 d.recent.map(r => `<tr>
-                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.date)}</td>
                     <td>${escapeHtml(r.account || '')}</td>
                     <td>${r.card_last4 ? '····' + escapeHtml(r.card_last4) : ''}</td>
                     <td>${escapeHtml(r.category || '—')}</td>
@@ -2257,9 +2257,9 @@
                 </tr></thead>
                 <tbody>` +
                 d.rows.map(r => `<tr>
-                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.date)}</td>
                     <td>${escapeHtml(r.account || '')}</td>
-                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.check_number || '')}</td>
                     <td>${escapeHtml(r.category || '—')}</td>
                     <td>${escapeHtml(r.payee || '—')}</td>
                     <td>${escapeHtml(r.memo || '')}</td>
@@ -2299,9 +2299,9 @@
                 </tr></thead>
                 <tbody>` +
                 d.rows.map(r => `<tr data-txid="${r.id}" style="cursor:pointer;">
-                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.date)}</td>
                     <td>${escapeHtml(r.account || '')}</td>
-                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.check_number || '')}</td>
                     <td>${r.card_last4 ? '····' + escapeHtml(r.card_last4) : ''}</td>
                     <td>${escapeHtml(r.category || '—')}</td>
                     <td>${escapeHtml(r.payee || '—')}</td>
@@ -2632,7 +2632,7 @@
                 <div class="fin-card"><div class="lbl">Rows</div><div class="val">${s.total_rows}</div><div class="sub">${s.new_rows} new · ${s.duplicate_rows} duplicate</div></div>
                 <div class="fin-card income"><div class="lbl">Deposits</div><div class="val">${fmtMoney(s.deposits)}</div></div>
                 <div class="fin-card expense"><div class="lbl">Withdrawals</div><div class="val">${fmtMoney(s.withdrawals)}</div></div>
-                <div class="fin-card"><div class="lbl">Date range</div><div class="val" style="font-size:14px;">${s.date_range[0] || '—'} → ${s.date_range[1] || '—'}</div></div>
+                <div class="fin-card"><div class="lbl">Date range</div><div class="val" style="font-size:14px;">${escapeHtml(s.date_range[0] || '—')} → ${escapeHtml(s.date_range[1] || '—')}</div></div>
             `;
             const showDupes = document.getElementById('finImportShowDupes').checked;
             const rows = p.rows.filter(r => showDupes || !r.is_duplicate);
@@ -2644,9 +2644,9 @@
                 <tbody>` +
                 rows.map(r => `<tr data-idx="${r.row_index}" style="${r.is_duplicate ? 'opacity:.5;' : ''}">
                     <td>${r.is_duplicate ? '<span title="already imported" style="color:var(--gray-600);">dup</span>' : (r.category_source === 'rule' ? '<span title="matched a rule" style="color:#0a7a3a;">rule</span>' : '')}</td>
-                    <td>${r.date}</td>
+                    <td>${escapeHtml(r.date)}</td>
                     <td>${escapeHtml(r.type || '')}</td>
-                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.check_number || '')}</td>
                     <td>${r.card_last4 ? '····' + escapeHtml(r.card_last4) : ''}</td>
                     <td>${escapeHtml(r.memo || '').slice(0, 60)}</td>
                     <td><input type="text" class="fin-imp-payee" data-idx="${r.row_index}" value="${escapeHtml(r.payee || '')}" style="width:100%;padding:2px 4px;font-size:12px;border:1px solid var(--gray-300);border-radius:4px;"></td>
@@ -2720,7 +2720,7 @@
                     <tbody>` +
                     rows.map(b => `<tr>
                         <td>${b.id}</td>
-                        <td>${b.imported_at}</td>
+                        <td>${escapeHtml(b.imported_at)}</td>
                         <td>${escapeHtml(b.account || '')}</td>
                         <td>${escapeHtml(b.filename)}</td>
                         <td class="num">${b.tx_count}</td>
@@ -2795,8 +2795,8 @@
             const ending = parseFloat(document.getElementById('finRecEnding').value) || 0;
             const cards = document.getElementById('finRecCards');
             cards.innerHTML = `
-                <div class="fin-card"><div class="lbl">Book balance (as of ${d.as_of})</div><div class="val">${fmtMoney(d.book_balance_as_of)}</div><div class="sub">from D1 ledger</div></div>
-                <div class="fin-card"><div class="lbl">Already reconciled</div><div class="val">${fmtMoney(d.reconciled_balance)}</div><div class="sub">${d.account.name} · opened ${fmtMoney(d.account.opening_bal)}</div></div>
+                <div class="fin-card"><div class="lbl">Book balance (as of ${escapeHtml(d.as_of)})</div><div class="val">${fmtMoney(d.book_balance_as_of)}</div><div class="sub">from D1 ledger</div></div>
+                <div class="fin-card"><div class="lbl">Already reconciled</div><div class="val">${fmtMoney(d.reconciled_balance)}</div><div class="sub">${escapeHtml(d.account.name)} · opened ${fmtMoney(d.account.opening_bal)}</div></div>
                 <div class="fin-card"><div class="lbl">Statement ending</div><div class="val">${ending ? fmtMoney(ending) : '—'}</div><div class="sub">enter above</div></div>
                 <div class="fin-card" id="finRecSelectedCard"><div class="lbl">If I check all selected</div><div class="val" id="finRecProjected">—</div><div class="sub" id="finRecDiff">select rows below</div></div>
             `;
@@ -2808,8 +2808,8 @@
                 <tbody>` +
                 d.unreconciled.map(r => `<tr>
                     <td><input type="checkbox" class="fin-rec-chk" data-id="${r.id}" data-amt="${r.amount}" onchange="finRecRecalc()"></td>
-                    <td>${r.date}</td>
-                    <td>${r.check_number || ''}</td>
+                    <td>${escapeHtml(r.date)}</td>
+                    <td>${escapeHtml(r.check_number || '')}</td>
                     <td>${escapeHtml(r.category || '—')}</td>
                     <td>${escapeHtml(r.payee || '—')}</td>
                     <td>${escapeHtml(r.memo || '')}</td>
@@ -3008,7 +3008,7 @@
                 } else {
                     const opts = ['<option value="">— Unassigned —</option>']
                         .concat(activeBartenders.map(b =>
-                            `<option value="${b.id}"${shift.bartender_id === b.id ? ' selected' : ''}>${b.name}</option>`
+                            `<option value="${b.id}"${shift.bartender_id === b.id ? ' selected' : ''}>${escapeHtml(b.name)}</option>`
                         ))
                         .join('');
                     const openBadge = shift.status === 'open'
@@ -3020,9 +3020,9 @@
                 <tr>
                     <td>${formatDate(r.event_date)}</td>
                     <td>${r.start_time ? formatTime(r.start_time) : '-'}${r.extra_hours ? `<br><small>+${r.extra_hours}hr</small>` : ''}${r.kitchen_rental ? '<br><small>+ Kitchen</small>' : ''}</td>
-                    <td>${r.event_type}</td>
-                    <td>${r.contact_name}<br><small>${r.contact_email}</small></td>
-                    <td><span class="badge badge-${r.status}">${r.status}</span></td>
+                    <td>${escapeHtml(r.event_type)}</td>
+                    <td>${escapeHtml(r.contact_name)}<br><small>${escapeHtml(r.contact_email)}</small></td>
+                    <td><span class="badge badge-${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></td>
                     <td>${bartenderCell}</td>
                     <td class="actions">
                         <button class="btn btn-sm" onclick="viewRental(${r.id})" title="View Details">
@@ -3059,8 +3059,8 @@
             tbody.innerHTML = eventsData.map(e => `
                 <tr>
                     <td>${formatDate(e.event_date)}</td>
-                    <td>${e.event_time || '-'}</td>
-                    <td>${e.title}</td>
+                    <td>${escapeHtml(e.event_time || '-')}</td>
+                    <td>${escapeHtml(e.title)}</td>
                     <td class="actions">
                         <button class="btn btn-sm" onclick="editEvent(${e.id})">
                             <i class="fas fa-edit"></i>
@@ -3115,11 +3115,11 @@
                 const lvlLabel = { webmaster: 'Webmaster', officer: 'Officer', bartender: 'Bartender', custom: 'Custom' }[lvl];
                 const permSummary = u.role === 'webmaster'
                     ? 'All pages'
-                    : ((u.permissions || []).map(p => PERM_LABELS[p] || p).join(', ') || '<span style="color:#999">No access</span>');
+                    : ((u.permissions || []).map(p => PERM_LABELS[p] || escapeHtml(p)).join(', ') || '<span style="color:#999">No access</span>');
                 return `
                 <tr>
-                    <td>${u.name}</td>
-                    <td>${u.email}<br><small style="color:#666">${permSummary}</small></td>
+                    <td>${escapeHtml(u.name)}</td>
+                    <td>${escapeHtml(u.email)}<br><small style="color:#666">${permSummary}</small></td>
                     <td><span class="badge badge-approved">${lvlLabel}</span></td>
                     <td>
                         <button class="btn btn-sm ${u.email_notifications ? 'btn-success' : ''}"
@@ -3159,9 +3159,9 @@
                 emptyState.style.display = 'none';
                 tbody.innerHTML = subscribers.map(s => `
                     <tr>
-                        <td>${s.name}</td>
-                        <td><a href="mailto:${s.email}">${s.email}</a></td>
-                        <td>${s.interests || '-'}</td>
+                        <td>${escapeHtml(s.name)}</td>
+                        <td><a href="mailto:${escapeHtml(s.email)}">${escapeHtml(s.email)}</a></td>
+                        <td>${escapeHtml(s.interests || '-')}</td>
                         <td>${new Date(s.subscribed_at).toLocaleDateString()}</td>
                         <td>
                             <span class="badge ${s.unsubscribed_at ? 'badge-cancelled' : 'badge-paid'}">
@@ -3206,9 +3206,9 @@
                     empty.style.display = 'none';
                     tbody.innerHTML = bartendersData.map(b => `
                         <tr>
-                            <td>${b.name}</td>
-                            <td>${b.email ? `<a href="mailto:${b.email}">${b.email}</a>` : '-'}</td>
-                            <td>${b.phone ? `<a href="tel:${b.phone}">${b.phone}</a>` : '-'}</td>
+                            <td>${escapeHtml(b.name)}</td>
+                            <td>${b.email ? `<a href="mailto:${escapeHtml(b.email)}">${escapeHtml(b.email)}</a>` : '-'}</td>
+                            <td>${b.phone ? `<a href="tel:${escapeHtml(b.phone)}">${escapeHtml(b.phone)}</a>` : '-'}</td>
                             <td><span class="badge ${b.active ? 'badge-paid' : 'badge-cancelled'}">
                                 ${b.active ? 'Active' : 'Inactive'}
                             </span></td>
@@ -3310,8 +3310,8 @@
                     const timeLabel = s.start_time
                         ? `${formatTime(s.start_time)}${s.end_time ? ' – ' + formatTime(s.end_time) : ''}`
                         : '-';
-                    const labelText = s.label || (s.rental_id ? `Rental: ${s.rental_event_type || ''}` : '-');
-                    const bartenderText = s.bartender_name || '<span style="color:#999">— None —</span>';
+                    const labelText = s.label ? escapeHtml(s.label) : (s.rental_id ? `Rental: ${escapeHtml(s.rental_event_type || '')}` : '-');
+                    const bartenderText = s.bartender_name ? escapeHtml(s.bartender_name) : '<span style="color:#999">— None —</span>';
                     const canNotify = s.status !== 'cancelled' && s.status !== 'covered';
                     const canMarkCovered = s.status === 'open' || s.status === 'assigned';
                     return `
@@ -3319,7 +3319,7 @@
                             <td>${formatDate(s.shift_date)}</td>
                             <td>${timeLabel}</td>
                             <td>${labelText}${s.rental_id ? ` <small style="color:#666">(rental #${s.rental_id})</small>` : ''}</td>
-                            <td><span class="badge ${shiftStatusBadgeClass(s.status)}">${s.status}</span></td>
+                            <td><span class="badge ${shiftStatusBadgeClass(s.status)}">${escapeHtml(s.status)}</span></td>
                             <td>${bartenderText}</td>
                             <td class="actions">
                                 <button class="btn btn-sm" onclick="editShift(${s.id})" title="Edit / Assign">
@@ -3353,7 +3353,7 @@
             const current = sel.value;
             const activeOptions = (bartendersData || [])
                 .filter(b => b.active)
-                .map(b => `<option value="${b.id}">${b.name}</option>`)
+                .map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`)
                 .join('');
             sel.innerHTML = '<option value="">— Unassigned —</option>' + activeOptions;
             sel.value = current;
@@ -3464,7 +3464,7 @@
             const current = sel.value;
             const options = ['<option value="">— Unassigned —</option>']
                 .concat((bartendersData || []).filter(b => b.active).map(b =>
-                    `<option value="${b.id}">${b.name}</option>`
+                    `<option value="${b.id}">${escapeHtml(b.name)}</option>`
                 ))
                 .join('');
             sel.innerHTML = options;
@@ -3601,16 +3601,16 @@
             document.getElementById('rentalDetails').innerHTML = `
                 <p><strong>Date:</strong> ${formatDate(rental.event_date)}</p>
                 <p><strong>Time:</strong> ${rental.start_time ? formatTime(rental.start_time) + ' (4-hour block)' : 'Not specified'}</p>
-                <p><strong>Event Type:</strong> ${rental.event_type}</p>
+                <p><strong>Event Type:</strong> ${escapeHtml(rental.event_type)}</p>
                 <p><strong>Kitchen Rental:</strong> ${rental.kitchen_rental ? 'Yes (+$35)' : 'No'}</p>
-                <p><strong>Contact:</strong> ${rental.contact_name}</p>
-                <p><strong>Email:</strong> <a href="mailto:${rental.contact_email}">${rental.contact_email}</a></p>
-                <p><strong>Phone:</strong> <a href="tel:${rental.contact_phone}">${rental.contact_phone}</a></p>
-                <p><strong>Details:</strong> ${rental.details || 'None'}</p>
-                <p><strong>Status:</strong> <span class="badge badge-${rental.status}">${rental.status}</span></p>
+                <p><strong>Contact:</strong> ${escapeHtml(rental.contact_name)}</p>
+                <p><strong>Email:</strong> <a href="mailto:${escapeHtml(rental.contact_email)}">${escapeHtml(rental.contact_email)}</a></p>
+                <p><strong>Phone:</strong> <a href="tel:${escapeHtml(rental.contact_phone)}">${escapeHtml(rental.contact_phone)}</a></p>
+                <p><strong>Details:</strong> ${escapeHtml(rental.details || 'None')}</p>
+                <p><strong>Status:</strong> <span class="badge badge-${escapeHtml(rental.status)}">${escapeHtml(rental.status)}</span></p>
                 ${rental.expires_at ? `<p><strong>Expires:</strong> ${new Date(rental.expires_at).toLocaleString()}</p>` : ''}
-                ${rental.amount_due ? `<p><strong>Invoice:</strong> ${rental.invoice_number || '—'} — $${(rental.amount_due/100).toFixed(2)} <span class="badge badge-${rental.status}">${rental.status === 'paid' ? 'PAID' : 'awaiting payment'}</span></p>` : ''}
-                ${rental.pay_token && rental.status !== 'paid' ? `<p><strong>Pay link:</strong> <a href="https://www.somersetamericanlegion.org/pay-rental.html?token=${rental.pay_token}" target="_blank">open</a> &middot; <a href="#" onclick="copyPayLink('${rental.pay_token}');return false;">copy</a></p>` : ''}
+                ${rental.amount_due ? `<p><strong>Invoice:</strong> ${escapeHtml(rental.invoice_number || '—')} — $${(rental.amount_due/100).toFixed(2)} <span class="badge badge-${escapeHtml(rental.status)}">${rental.status === 'paid' ? 'PAID' : 'awaiting payment'}</span></p>` : ''}
+                ${rental.pay_token && rental.status !== 'paid' ? `<p><strong>Pay link:</strong> <a href="https://www.somersetamericanlegion.org/pay-rental.html?token=${escapeHtml(rental.pay_token)}" target="_blank">open</a> &middot; <a href="#" onclick="copyPayLink('${escapeHtml(rental.pay_token)}');return false;">copy</a></p>` : ''}
             `;
             
             let actions = '';
