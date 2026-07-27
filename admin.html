@@ -1489,6 +1489,22 @@
         </div>
     </div>
 
+    <!-- Attachment viewer modal (images inline, PDFs in iframe) -->
+    <div class="modal-overlay" id="finAttachViewModal">
+        <div class="modal" style="max-width:95vw;width:1100px;">
+            <div class="modal-header">
+                <h3 id="finAttachViewTitle" style="max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Attachment</h3>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button class="btn btn-secondary btn-sm" id="finAttachViewDownload"><i class="fas fa-download"></i> Download</button>
+                    <button class="modal-close" onclick="closeAttachViewer()">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body" id="finAttachViewBody" style="text-align:center;background:#f5f5f5;min-height:200px;padding:0;">
+                <div style="padding:60px;color:var(--gray-600);">Loading&hellip;</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Finance Transaction modal (add + edit) -->
     <div class="modal-overlay" id="finTxModal">
         <div class="modal" style="max-width:720px;">
@@ -2422,15 +2438,36 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const rows = await res.json();
                 if (!rows.length) { listEl.innerHTML = '<span style="color:var(--gray-600);">No attachments.</span>'; return; }
-                listEl.innerHTML = rows.map(a => `
-                    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--gray-200);">
-                        <i class="fas fa-file"></i>
-                        <a href="#" onclick="downloadFinAttachment(${a.id}); return false;">${escapeHtml(a.filename)}</a>
-                        <span style="color:var(--gray-600);font-size:11px;">(${Math.round(a.b64_len * 0.75 / 1024)} KB, ${a.mime_type})</span>
-                        <button class="btn btn-danger btn-sm" style="margin-left:auto;padding:2px 8px;font-size:11px;"
-                            onclick="deleteFinAttachment(${a.id}, ${txId})"><i class="fas fa-trash"></i></button>
-                    </div>
-                `).join('');
+                listEl.innerHTML = rows.map(a => {
+                    const icon = a.mime_type.startsWith('image/') ? 'fa-image'
+                              : a.mime_type === 'application/pdf' ? 'fa-file-pdf'
+                              : 'fa-file';
+                    const attrs = `data-id="${a.id}" data-name="${escapeHtml(a.filename)}" data-mime="${escapeHtml(a.mime_type)}"`;
+                    return `
+                        <div class="fin-attach-row" ${attrs} style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--gray-200);">
+                            <i class="fas ${icon}"></i>
+                            <a href="#" class="fin-attach-view" title="View">${escapeHtml(a.filename)}</a>
+                            <span style="color:var(--gray-600);font-size:11px;">(${Math.round(a.b64_len * 0.75 / 1024)} KB, ${a.mime_type})</span>
+                            <button class="btn btn-secondary btn-sm fin-attach-download" style="margin-left:auto;padding:2px 8px;font-size:11px;" title="Download"><i class="fas fa-download"></i></button>
+                            <button class="btn btn-danger btn-sm fin-attach-delete" style="padding:2px 8px;font-size:11px;" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>`;
+                }).join('');
+                if (!listEl._finAttachBound) {
+                    listEl.addEventListener('click', ev => {
+                        const row = ev.target.closest('.fin-attach-row');
+                        if (!row) return;
+                        const id = Number(row.dataset.id);
+                        if (ev.target.closest('.fin-attach-view')) {
+                            ev.preventDefault();
+                            viewFinAttachment(id, row.dataset.name, row.dataset.mime);
+                        } else if (ev.target.closest('.fin-attach-download')) {
+                            downloadFinAttachment(id);
+                        } else if (ev.target.closest('.fin-attach-delete')) {
+                            deleteFinAttachment(id, Number(document.getElementById('finTxId').value));
+                        }
+                    });
+                    listEl._finAttachBound = true;
+                }
             } catch (err) {
                 listEl.innerHTML = '<span style="color:#b0212a;">' + escapeHtml(err.message) + '</span>';
             }
@@ -2465,6 +2502,46 @@
             } catch (err) {
                 alert('Upload failed: ' + err.message);
             }
+        }
+
+        let finAttachViewUrl = null;
+        async function viewFinAttachment(id, filename, mimeType) {
+            document.getElementById('finAttachViewTitle').textContent = filename;
+            const body = document.getElementById('finAttachViewBody');
+            body.innerHTML = '<div style="padding:60px;color:var(--gray-600);">Loading&hellip;</div>';
+            openModal('finAttachViewModal');
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/attachments/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (res.status === 401) { closeAttachViewer(); logout('Session expired.'); return; }
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                if (finAttachViewUrl) URL.revokeObjectURL(finAttachViewUrl);
+                finAttachViewUrl = URL.createObjectURL(blob);
+
+                if (mimeType.startsWith('image/')) {
+                    body.innerHTML = `<img src="${finAttachViewUrl}" alt="${escapeHtml(filename)}" style="max-width:100%;max-height:80vh;height:auto;display:block;margin:0 auto;">`;
+                } else if (mimeType === 'application/pdf') {
+                    body.innerHTML = `<iframe src="${finAttachViewUrl}" style="width:100%;height:80vh;border:0;background:#fff;"></iframe>`;
+                } else {
+                    body.innerHTML = `<div style="padding:60px;color:var(--gray-600);">This file type can't be previewed. Use Download.</div>`;
+                }
+
+                document.getElementById('finAttachViewDownload').onclick = () => {
+                    const a = document.createElement('a');
+                    a.href = finAttachViewUrl;
+                    a.download = filename;
+                    document.body.appendChild(a); a.click(); a.remove();
+                };
+            } catch (err) {
+                body.innerHTML = `<div style="padding:60px;color:#b0212a;">Could not load: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function closeAttachViewer() {
+            closeModal('finAttachViewModal');
+            if (finAttachViewUrl) { URL.revokeObjectURL(finAttachViewUrl); finAttachViewUrl = null; }
         }
 
         async function downloadFinAttachment(id) {
