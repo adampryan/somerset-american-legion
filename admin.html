@@ -131,8 +131,14 @@
         }
         
         .btn-sm {
-            padding: 6px 12px;
+            padding: 8px 12px;
             font-size: 14px;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            line-height: 1.2;
         }
         
         .error-msg {
@@ -592,7 +598,7 @@
             <img src="images/TAL-emblem-full-detail-RGB.png" alt="American Legion Emblem" class="login-logo">
             <h1>Admin Login</h1>
             <p class="subtitle">Somerset American Legion Post 228</p>
-            <div class="error-msg" id="loginError"></div>
+            <div class="error-msg" id="loginError" role="alert"></div>
             <form id="loginForm">
                 <div class="form-group">
                     <label for="email">Email</label>
@@ -822,8 +828,8 @@
                 </div>
                 <div class="panel-body">
                     <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px;">
-                        <div><label style="font-size:.8rem;color:#666;">From</label><br><input type="date" id="posFrom" style="padding:6px;"></div>
-                        <div><label style="font-size:.8rem;color:#666;">To</label><br><input type="date" id="posTo" style="padding:6px;"></div>
+                        <div><label for="posFrom" style="font-size:.8rem;color:#666;">From</label><br><input type="date" id="posFrom" style="padding:6px;"></div>
+                        <div><label for="posTo" style="font-size:.8rem;color:#666;">To</label><br><input type="date" id="posTo" style="padding:6px;"></div>
                         <button class="btn btn-primary btn-sm" onclick="loadPosReport()"><i class="fas fa-chart-line"></i> Run</button>
                         <span style="flex:1"></span>
                         <button class="btn btn-sm" onclick="posQuick(0)">Today</button>
@@ -950,7 +956,7 @@
                         <i class="fas fa-spinner fa-spin"></i>
                         <p>Loading dashboard&hellip;</p>
                     </div>
-                    <div id="finDashError" class="error-msg" style="display:none;"></div>
+                    <div id="finDashError" class="error-msg" role="alert" style="display:none;"></div>
                     <div id="finDashContent" style="display:none;">
                         <div class="fin-cards" id="finAcctCards"></div>
                         <h3 style="margin:8px 0 12px;color:var(--navy);font-size:16px;">YTD Summary</h3>
@@ -966,30 +972,30 @@
                 <div class="subpanel" id="finSubTransactions">
                     <div class="fin-filters">
                         <div>
-                            <label>Account</label>
+                            <label for="finTxAccount">Account</label>
                             <select id="finTxAccount"><option value="">All</option></select>
                         </div>
                         <div>
-                            <label>Category</label>
+                            <label for="finTxCategory">Category</label>
                             <select id="finTxCategory"><option value="">All</option></select>
                         </div>
                         <div>
-                            <label>Card</label>
+                            <label for="finTxCard">Card</label>
                             <select id="finTxCard">
                                 <option value="">All</option>
                                 <option value="__any__">— Any card —</option>
                             </select>
                         </div>
                         <div>
-                            <label>From</label>
+                            <label for="finTxFrom">From</label>
                             <input type="date" id="finTxFrom">
                         </div>
                         <div>
-                            <label>To</label>
+                            <label for="finTxTo">To</label>
                             <input type="date" id="finTxTo">
                         </div>
                         <div style="flex:1;min-width:180px;">
-                            <label>Search (payee / memo / check#)</label>
+                            <label for="finTxSearch">Search (payee / memo / check#)</label>
                             <input type="text" id="finTxSearch" placeholder="e.g. Comcast, 1463">
                         </div>
                         <div>
@@ -999,8 +1005,8 @@
                             <button class="btn btn-secondary btn-sm" onclick="openFinTxModal()"><i class="fas fa-plus"></i> Add Entry</button>
                         </div>
                     </div>
-                    <div id="finTxError" class="error-msg" style="display:none;"></div>
-                    <div id="finTxMeta" style="font-size:12px;color:var(--gray-600);margin-bottom:8px;"></div>
+                    <div id="finTxError" class="error-msg" role="alert" style="display:none;"></div>
+                    <div id="finTxMeta" aria-live="polite" style="font-size:12px;color:var(--gray-600);margin-bottom:8px;"></div>
                     <div style="overflow-x:auto;max-height:65vh;">
                         <table class="fin-table" id="finTxTable"></table>
                     </div>
@@ -1014,18 +1020,18 @@
                     </p>
                     <div class="fin-filters">
                         <div>
-                            <label>Account</label>
+                            <label for="finImportAccount">Account</label>
                             <select id="finImportAccount"></select>
                         </div>
                         <div style="flex:1;min-width:220px;">
-                            <label>CSV file</label>
+                            <label for="finImportFile">CSV file</label>
                             <input type="file" id="finImportFile" accept=".csv,text/csv">
                         </div>
                         <div>
                             <button class="btn btn-primary btn-sm" onclick="previewFinanceImport()"><i class="fas fa-eye"></i> Preview</button>
                         </div>
                     </div>
-                    <div id="finImportError" class="error-msg" style="display:none;"></div>
+                    <div id="finImportError" class="error-msg" role="alert" style="display:none;"></div>
 
                     <div id="finImportPreview" style="display:none;">
                         <div class="fin-cards" id="finImportSummary"></div>
@@ -1057,28 +1063,28 @@
                     </p>
                     <div class="fin-filters">
                         <div>
-                            <label>Account</label>
+                            <label for="finRecAccount">Account</label>
                             <select id="finRecAccount"></select>
                         </div>
                         <div>
-                            <label>Statement date</label>
+                            <label for="finRecDate">Statement date</label>
                             <input type="date" id="finRecDate">
                         </div>
                         <div>
-                            <label>Statement ending balance</label>
+                            <label for="finRecEnding">Statement ending balance</label>
                             <input type="number" step="0.01" id="finRecEnding" placeholder="0.00">
                         </div>
                         <div>
                             <button class="btn btn-primary btn-sm" onclick="loadReconcileCandidates()"><i class="fas fa-list-check"></i> Load</button>
                         </div>
                     </div>
-                    <div id="finRecError" class="error-msg" style="display:none;"></div>
+                    <div id="finRecError" class="error-msg" role="alert" style="display:none;"></div>
 
                     <div id="finRecResult" style="display:none;">
                         <div class="fin-cards" id="finRecCards"></div>
                         <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
                             <label style="font-size:13px;"><input type="checkbox" id="finRecSelectAll" onchange="finRecToggleAll(this.checked)"> select / clear all</label>
-                            <div id="finRecStatus" style="margin-left:auto;font-size:13px;font-weight:600;"></div>
+                            <div id="finRecStatus" aria-live="polite" style="margin-left:auto;font-size:13px;font-weight:600;"></div>
                             <button class="btn btn-primary btn-sm" onclick="saveReconcile()"><i class="fas fa-save"></i> Save reconciliation</button>
                         </div>
                         <div style="overflow-x:auto;max-height:55vh;">
@@ -1098,7 +1104,7 @@
                         <i class="fas fa-spinner fa-spin"></i>
                         <p>Loading report&hellip;</p>
                     </div>
-                    <div class="error-msg" id="financeError" style="display:none;"></div>
+                    <div class="error-msg" id="financeError" role="alert" style="display:none;"></div>
                     <iframe id="financeFrame" title="Post 228 Finance Officer Report"
                         style="width:100%;height:70vh;border:1px solid #d6dbe3;border-radius:8px;display:none;background:#fff;"></iframe>
                 </div>
@@ -1135,11 +1141,11 @@
     </div>
 
     <!-- Rental Detail Modal -->
-    <div class="modal-overlay" id="rentalModal">
+    <div class="modal-overlay" id="rentalModal" role="dialog" aria-modal="true" aria-labelledby="rentalModalTitle">
         <div class="modal">
             <div class="modal-header">
-                <h3>Rental Details</h3>
-                <button class="modal-close" onclick="closeModal('rentalModal')">&times;</button>
+                <h3 id="rentalModalTitle">Rental Details</h3>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('rentalModal')">&times;</button>
             </div>
             <div class="modal-body" id="rentalDetails"></div>
             <div class="modal-footer" id="rentalActions"></div>
@@ -1147,11 +1153,11 @@
     </div>
 
     <!-- Event Modal -->
-    <div class="modal-overlay" id="eventModal">
+    <div class="modal-overlay" id="eventModal" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="eventModalTitle">Add Event</h3>
-                <button class="modal-close" onclick="closeModal('eventModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('eventModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="eventForm">
@@ -1182,11 +1188,11 @@
     </div>
 
     <!-- User Modal -->
-    <div class="modal-overlay" id="userModal">
+    <div class="modal-overlay" id="userModal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="userModalTitle">Add User</h3>
-                <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('userModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="userForm" onsubmit="return false;">
@@ -1227,11 +1233,11 @@
     </div>
 
     <!-- Add Rental Modal -->
-    <div class="modal-overlay" id="rentalAddModal">
+    <div class="modal-overlay" id="rentalAddModal" role="dialog" aria-modal="true" aria-labelledby="rentalAddModalTitle">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="rentalAddModalTitle">Add Rental</h3>
-                <button class="modal-close" onclick="closeModal('rentalAddModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('rentalAddModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="rentalAddForm">
@@ -1336,11 +1342,11 @@
     </div>
 
     <!-- Bartender Modal -->
-    <div class="modal-overlay" id="bartenderModal">
+    <div class="modal-overlay" id="bartenderModal" role="dialog" aria-modal="true" aria-labelledby="bartenderModalTitle">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="bartenderModalTitle">Add Bartender</h3>
-                <button class="modal-close" onclick="closeModal('bartenderModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('bartenderModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="bartenderForm">
@@ -1377,11 +1383,11 @@
     </div>
 
     <!-- Shift Modal -->
-    <div class="modal-overlay" id="shiftModal">
+    <div class="modal-overlay" id="shiftModal" role="dialog" aria-modal="true" aria-labelledby="shiftModalTitle">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="shiftModalTitle">Add Shift</h3>
-                <button class="modal-close" onclick="closeModal('shiftModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('shiftModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="shiftForm">
@@ -1442,17 +1448,17 @@
     </style>
 
     <!-- POS Product Modal -->
-    <div class="modal-overlay" id="posProductModal">
+    <div class="modal-overlay" id="posProductModal" role="dialog" aria-modal="true" aria-labelledby="posProductTitle">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="posProductTitle">Add Menu Item</h3>
-                <button class="modal-close" onclick="closeModal('posProductModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('posProductModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="posProductForm" onsubmit="return false;">
                     <input type="hidden" id="posPId">
-                    <div class="form-group"><label>Name *</label><input type="text" id="posPName" required></div>
-                    <div class="form-group"><label>Category</label>
+                    <div class="form-group"><label for="posPName">Name *</label><input type="text" id="posPName" required></div>
+                    <div class="form-group"><label for="posPCat">Category</label>
                         <select id="posPCat">
                             <option value="beer">Beer</option><option value="seltzer">Seltzer</option>
                             <option value="wine">Wine</option><option value="liquor">Liquor</option>
@@ -1460,14 +1466,14 @@
                             <option value="other">Other</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Price ($) *</label><input type="number" id="posPPrice" step="0.25" min="0" required></div>
+                    <div class="form-group"><label for="posPPrice">Price ($) *</label><input type="number" id="posPPrice" step="0.25" min="0" required></div>
                     <div class="form-group">
                         <label style="display:flex;align-items:center;cursor:pointer;">
                             <input type="checkbox" id="posPTrack" style="width:auto;margin-right:10px;" onchange="document.getElementById('posPStockWrap').style.display=this.checked?'block':'none';">
                             <span>Track inventory</span>
                         </label>
                         <div id="posPStockWrap" style="display:none;margin-top:8px;">
-                            <label>Current stock</label><input type="number" id="posPStock" step="1" min="0" value="0">
+                            <label for="posPStock">Current stock</label><input type="number" id="posPStock" step="1" min="0" value="0">
                         </div>
                     </div>
                     <div class="form-group">
@@ -1485,11 +1491,11 @@
     </div>
 
     <!-- Item drill-down modal -->
-    <div class="modal-overlay" id="itemDrillModal">
+    <div class="modal-overlay" id="itemDrillModal" role="dialog" aria-modal="true" aria-labelledby="drillTitle">
         <div class="modal" style="max-width:660px;">
             <div class="modal-header">
                 <h3 id="drillTitle">Item Sales</h3>
-                <button class="modal-close" onclick="closeModal('itemDrillModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('itemDrillModal')">&times;</button>
             </div>
             <div class="modal-body" id="drillBody"></div>
         </div>
@@ -1497,13 +1503,13 @@
 
     <!-- Attachment viewer modal (images inline, PDFs in iframe) -->
     <!-- z-index bumped so it stacks above the transaction Edit modal it opens from -->
-    <div class="modal-overlay" id="finAttachViewModal" style="z-index:1100;">
+    <div class="modal-overlay" id="finAttachViewModal" style="z-index:1100;" role="dialog" aria-modal="true" aria-labelledby="finAttachViewTitle">
         <div class="modal" style="max-width:95vw;width:1100px;">
             <div class="modal-header">
                 <h3 id="finAttachViewTitle" style="max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Attachment</h3>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <button class="btn btn-secondary btn-sm" id="finAttachViewDownload"><i class="fas fa-download"></i> Download</button>
-                    <button class="modal-close" onclick="closeAttachViewer()">&times;</button>
+                    <button class="modal-close" aria-label="Close" onclick="closeAttachViewer()">&times;</button>
                 </div>
             </div>
             <div class="modal-body" id="finAttachViewBody" style="text-align:center;background:#f5f5f5;min-height:200px;padding:0;">
@@ -1513,59 +1519,59 @@
     </div>
 
     <!-- Finance Transaction modal (add + edit) -->
-    <div class="modal-overlay" id="finTxModal">
+    <div class="modal-overlay" id="finTxModal" role="dialog" aria-modal="true" aria-labelledby="finTxModalTitle">
         <div class="modal" style="max-width:720px;">
             <div class="modal-header">
                 <h3 id="finTxModalTitle">Add Transaction</h3>
-                <button class="modal-close" onclick="closeModal('finTxModal')">&times;</button>
+                <button class="modal-close" aria-label="Close" onclick="closeModal('finTxModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="finTxModalError" class="error-msg" style="display:none;margin-bottom:10px;"></div>
+                <div id="finTxModalError" class="error-msg" role="alert" style="display:none;margin-bottom:10px;"></div>
                 <input type="hidden" id="finTxId">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div>
-                        <label style="font-size:12px;color:var(--gray-600);">Date</label>
+                        <label for="finTxFieldDate" style="font-size:12px;color:var(--gray-600);">Date</label>
                         <input type="date" id="finTxFieldDate" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--gray-600);">Account</label>
+                        <label for="finTxFieldAccount" style="font-size:12px;color:var(--gray-600);">Account</label>
                         <select id="finTxFieldAccount" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;"></select>
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--gray-600);">Type</label>
+                        <label for="finTxFieldType" style="font-size:12px;color:var(--gray-600);">Type</label>
                         <select id="finTxFieldType" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
                             <option value="withdrawal">Withdrawal / Expense (−)</option>
                             <option value="deposit">Deposit / Income (+)</option>
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--gray-600);">Amount</label>
+                        <label for="finTxFieldAmount" style="font-size:12px;color:var(--gray-600);">Amount</label>
                         <input type="number" step="0.01" min="0" id="finTxFieldAmount" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="0.00">
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--gray-600);">Category</label>
+                        <label for="finTxFieldCategory" style="font-size:12px;color:var(--gray-600);">Category</label>
                         <select id="finTxFieldCategory" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
                             <option value="">(auto — apply rules)</option>
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--gray-600);">Check #</label>
+                        <label for="finTxFieldCheck" style="font-size:12px;color:var(--gray-600);">Check #</label>
                         <input type="number" id="finTxFieldCheck" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="optional">
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--gray-600);">Card last 4</label>
+                        <label for="finTxFieldCard" style="font-size:12px;color:var(--gray-600);">Card last 4</label>
                         <input type="text" maxlength="4" id="finTxFieldCard" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="e.g. 1651">
                     </div>
                     <div style="grid-column:1/-1;">
-                        <label style="font-size:12px;color:var(--gray-600);">Payee</label>
+                        <label for="finTxFieldPayee" style="font-size:12px;color:var(--gray-600);">Payee</label>
                         <input type="text" id="finTxFieldPayee" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="e.g. Comcast Business">
                     </div>
                     <div style="grid-column:1/-1;">
-                        <label style="font-size:12px;color:var(--gray-600);">Memo</label>
+                        <label for="finTxFieldMemo" style="font-size:12px;color:var(--gray-600);">Memo</label>
                         <textarea id="finTxFieldMemo" rows="2" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;" placeholder="Description / notes"></textarea>
                     </div>
                     <div style="grid-column:1/-1;">
-                        <label style="font-size:12px;color:var(--gray-600);">Reconciled on</label>
+                        <label for="finTxFieldReconciled" style="font-size:12px;color:var(--gray-600);">Reconciled on</label>
                         <input type="date" id="finTxFieldReconciled" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;">
                     </div>
                 </div>
@@ -1692,14 +1698,24 @@
             if (!rows.length) { el.innerHTML = '<span style="color:#999">No sales in range</span>'; return; }
             const max = Math.max(...rows.map(r => r.value), 1);
             el.innerHTML = rows.map(r => `<div class="bar-row clickable" data-key="${esc(r.key)}" title="Click for detail"><span class="lbl" title="${esc(r.label)}">${escapeHtml(r.label)}</span><span class="track"><span class="fill" style="width:${Math.max(3, Math.round(r.value / max * 100))}%"></span></span><span class="val">${r.extra}</span></div>`).join('');
-            el.querySelectorAll('.bar-row.clickable').forEach(x => x.addEventListener('click', () => openDrill(dim, x.dataset.key)));
+            el.querySelectorAll('.bar-row.clickable').forEach(x => {
+                x.tabIndex = 0; x.setAttribute('role', 'button');
+                const go = () => openDrill(dim, x.dataset.key);
+                x.addEventListener('click', go);
+                x.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+            });
         }
 
         // Unified drill-down: item / category / method / day → the individual sales.
         let lastDrill = null;
         const olink = id => `<span class="order-link" data-order="${id}">#${id}</span>`;
         function wireOrderLinks() {
-            document.querySelectorAll('#drillBody .order-link').forEach(el => el.addEventListener('click', () => openOrder(el.dataset.order)));
+            document.querySelectorAll('#drillBody .order-link').forEach(el => {
+                el.tabIndex = 0; el.setAttribute('role', 'button');
+                const go = () => openOrder(el.dataset.order);
+                el.addEventListener('click', go);
+                el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+            });
         }
         async function openDrill(dim, key) {
             lastDrill = { dim, key };
@@ -1716,7 +1732,7 @@
             }[dim];
             document.getElementById('drillTitle').innerHTML = cfg.title;
             document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
-            document.getElementById('itemDrillModal').classList.add('active');
+            openModal('itemDrillModal');
             try {
                 const d = await api(`/api/admin/pos/drill?dim=${dim}&key=${encodeURIComponent(key)}&from=${from}&to=${to}`);
                 const rightCols = new Set(['Qty', 'Amount', 'Tip', 'Total', 'Items']);
@@ -1732,7 +1748,7 @@
         async function openOrder(id) {
             document.getElementById('drillTitle').innerHTML = 'Order #' + id;
             document.getElementById('drillBody').innerHTML = '<p style="color:#999;">Loading…</p>';
-            document.getElementById('itemDrillModal').classList.add('active');
+            openModal('itemDrillModal');
             const dt = t => t ? new Date(t + 'Z').toLocaleString() : '—';
             const statusBadge = s => `<span class="badge badge-${s === 'paid' ? 'paid' : s === 'void' ? 'cancelled' : 'pending'}">${escapeHtml(s)}</span>`;
             try {
@@ -1809,7 +1825,12 @@
                 byDayEl.innerHTML = days.length
                     ? `<table style="width:100%;font-size:.85rem;"><thead><tr><th style="text-align:left;">Day</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Gross</th><th style="text-align:right;">Tips</th></tr></thead><tbody>${days.map(d => `<tr class="day-row" data-day="${escapeHtml(d.day)}" style="cursor:pointer;"><td>${escapeHtml(d.day)}</td><td style="text-align:right;">${d.orders}</td><td style="text-align:right;">${money(d.gross)}</td><td style="text-align:right;">${money(d.tips)}</td></tr>`).join('')}</tbody></table>`
                     : '<span style="color:#999">No sales in range</span>';
-                byDayEl.querySelectorAll('.day-row').forEach(el => el.addEventListener('click', () => openDrill('day', el.dataset.day)));
+                byDayEl.querySelectorAll('.day-row').forEach(el => {
+                    el.tabIndex = 0; el.setAttribute('role', 'button');
+                    const go = () => openDrill('day', el.dataset.day);
+                    el.addEventListener('click', go);
+                    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+                });
                 renderBars('posByBartender', (r.by_bartender || []).map(x => ({ key: x.name, label: x.name, value: x.gross, extra: `${money(x.gross)} · ${x.orders}` })), 'bartender');
                 // Tips by bartender (for tip-out), ranked by tips.
                 renderBars('posTipsByBartender', (r.by_bartender || []).slice().sort((a, b) => b.tips - a.tips).filter(x => x.tips > 0).map(x => ({ key: x.name, label: x.name, value: x.tips, extra: `${money(x.tips)} · ${x.orders}` })), 'bartender');
@@ -1885,7 +1906,12 @@
                 box.innerHTML = ev.slice(0, 60).map(e =>
                     `<div class="ev-row${e.order_id ? ' clickable' : ''}"${e.order_id ? ` data-order="${e.order_id}"` : ''} style="padding:3px 4px;border-bottom:1px solid #f0f0f0;${e.order_id ? 'cursor:pointer;' : ''}"><span style="color:#888;">${new Date(e.created_at + 'Z').toLocaleString()}</span> — <strong>${escapeHtml(e.event)}</strong>${e.detail ? ' · ' + escapeHtml(e.detail) : ''}${e.actor ? ' · ' + escapeHtml(e.actor) : ''}${e.order_id ? ` <span style="color:#002868;font-weight:600;">#${e.order_id}</span>` : ''}</div>`
                 ).join('') || '<span style="color:#999">No activity yet</span>';
-                box.querySelectorAll('.ev-row.clickable').forEach(el => el.addEventListener('click', () => openOrder(el.dataset.order)));
+                box.querySelectorAll('.ev-row.clickable').forEach(el => {
+                    el.tabIndex = 0; el.setAttribute('role', 'button');
+                    const go = () => openOrder(el.dataset.order);
+                    el.addEventListener('click', go);
+                    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+                });
             } catch (e) {}
         }
         function showPosProductModal() {
@@ -1895,7 +1921,7 @@
             document.getElementById('posPActive').checked = true;
             document.getElementById('posPTrack').checked = false;
             document.getElementById('posPStockWrap').style.display = 'none';
-            document.getElementById('posProductModal').classList.add('active');
+            openModal('posProductModal');
         }
         function editPosProduct(id) {
             const p = posMenuData.find(x => x.id === id); if (!p) return;
@@ -1908,7 +1934,7 @@
             document.getElementById('posPTrack').checked = !!p.track_inventory;
             document.getElementById('posPStockWrap').style.display = p.track_inventory ? 'block' : 'none';
             document.getElementById('posPStock').value = p.stock_qty ?? 0;
-            document.getElementById('posProductModal').classList.add('active');
+            openModal('posProductModal');
         }
         async function savePosProduct() {
             const id = document.getElementById('posPId').value;
@@ -2293,6 +2319,12 @@
                 const tr = ev.target.closest('tr[data-txid]');
                 if (tr) openFinTxModal(finTxRowsById[tr.dataset.txid]);
             });
+            // Keyboard: Enter/Space on a focused row opens the same Edit modal.
+            document.getElementById('finTxTable').addEventListener('keydown', ev => {
+                if (ev.key !== 'Enter' && ev.key !== ' ') return;
+                const tr = ev.target.closest('tr[data-txid]');
+                if (tr) { ev.preventDefault(); openFinTxModal(finTxRowsById[tr.dataset.txid]); }
+            });
         })();
 
         // Extend renderer to attach data-txid and cache the row so Edit can prefill.
@@ -2308,7 +2340,7 @@
                     <th>Date</th><th>Account</th><th>Chk#</th><th>Card</th><th>Category</th><th>Payee</th><th>Memo</th><th class="num">Amount</th><th>Rec</th>
                 </tr></thead>
                 <tbody>` +
-                d.rows.map(r => `<tr data-txid="${r.id}" style="cursor:pointer;">
+                d.rows.map(r => `<tr data-txid="${r.id}" tabindex="0" role="button" aria-label="Edit transaction" style="cursor:pointer;">
                     <td>${escapeHtml(r.date)}</td>
                     <td>${escapeHtml(r.account || '')}</td>
                     <td>${escapeHtml(r.check_number || '')}</td>
@@ -3257,7 +3289,7 @@
             document.getElementById('bartenderPhone').value = '';
             document.getElementById('bartenderNotes').value = '';
             document.getElementById('bartenderActive').checked = true;
-            document.getElementById('bartenderModal').classList.add('active');
+            openModal('bartenderModal');
         }
 
         function editBartender(id) {
@@ -3270,7 +3302,7 @@
             document.getElementById('bartenderPhone').value = b.phone || '';
             document.getElementById('bartenderNotes').value = b.notes || '';
             document.getElementById('bartenderActive').checked = !!b.active;
-            document.getElementById('bartenderModal').classList.add('active');
+            openModal('bartenderModal');
         }
 
         async function saveBartender() {
@@ -3391,7 +3423,7 @@
             document.getElementById('shiftLabel').value = '';
             document.getElementById('shiftNotes').value = '';
             document.getElementById('shiftBartender').value = '';
-            document.getElementById('shiftModal').classList.add('active');
+            openModal('shiftModal');
         }
 
         async function editShift(id) {
@@ -3409,7 +3441,7 @@
             document.getElementById('shiftLabel').value = s.label || '';
             document.getElementById('shiftNotes').value = s.notes || '';
             document.getElementById('shiftBartender').value = s.bartender_id || '';
-            document.getElementById('shiftModal').classList.add('active');
+            openModal('shiftModal');
         }
 
         async function saveShift() {
@@ -3514,7 +3546,7 @@
             document.getElementById('rentalAddBartender').value = '';
             document.getElementById('rentalAddBartenderHelp').textContent =
                 'Bartender can only be saved once the rental is approved or paid.';
-            document.getElementById('rentalAddModal').classList.add('active');
+            openModal('rentalAddModal');
         }
 
         async function editRental(id) {
@@ -3556,7 +3588,7 @@
                     ? 'A shift will be created for this rental when you save.'
                     : 'Bartender can only be saved once the rental is approved or paid.';
 
-            document.getElementById('rentalAddModal').classList.add('active');
+            openModal('rentalAddModal');
         }
         
         async function saveRentalAdd() {
@@ -3666,7 +3698,7 @@
             }
             
             document.getElementById('rentalActions').innerHTML = actions;
-            document.getElementById('rentalModal').classList.add('active');
+            openModal('rentalModal');
         }
 
         async function updateRentalStatus(id, status) {
@@ -3717,7 +3749,7 @@
             document.getElementById('eventDate').value = '';
             document.getElementById('eventTime').value = '';
             document.getElementById('eventDesc').value = '';
-            document.getElementById('eventModal').classList.add('active');
+            openModal('eventModal');
         }
 
         function editEvent(id) {
@@ -3729,7 +3761,7 @@
             document.getElementById('eventDate').value = event.event_date || '';
             document.getElementById('eventTime').value = event.event_time || '';
             document.getElementById('eventDesc').value = event.description || '';
-            document.getElementById('eventModal').classList.add('active');
+            openModal('eventModal');
         }
 
         async function saveEvent() {
@@ -3773,7 +3805,7 @@
             document.getElementById('newUserName').disabled = false;
             document.getElementById('newUserEmail').disabled = false;
             applyAccessPreset();
-            document.getElementById('userModal').classList.add('active');
+            openModal('userModal');
         }
 
         function editUser(id) {
@@ -3793,7 +3825,7 @@
             document.getElementById('newUserRole').value = lvl;
             renderPermChecks(u.role === 'webmaster' ? [] : (u.permissions || []));
             document.getElementById('permGroup').style.display = lvl === 'webmaster' ? 'none' : 'block';
-            document.getElementById('userModal').classList.add('active');
+            openModal('userModal');
         }
 
         async function saveUser() {
@@ -3828,11 +3860,34 @@
         }
 
         // Helpers
+        // --- Modal accessibility: focus management + focus trap (shared by every modal) ---
+        let _lastFocus = null;
+        function _modalFocusable(modal) {
+            return Array.from(modal.querySelectorAll(
+                'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )).filter(el => el.offsetParent !== null || el === document.activeElement);
+        }
         function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
+            const m = document.getElementById(id);
+            if (m) m.classList.remove('active');
+            // Restore focus to whatever was focused before the modal opened.
+            if (_lastFocus && document.body.contains(_lastFocus)) {
+                try { _lastFocus.focus(); } catch (e) {}
+            }
+            _lastFocus = null;
         }
         function openModal(id) {
-            document.getElementById(id).classList.add('active');
+            const m = document.getElementById(id);
+            if (!m) return;
+            _lastFocus = document.activeElement;
+            m.classList.add('active');
+            // Move focus into the modal: first focusable control, else close button, else heading.
+            let target = _modalFocusable(m)[0] || m.querySelector('.modal-close');
+            if (!target) {
+                const h = m.querySelector('.modal-header h3, .modal-header h2, h3, h2');
+                if (h) { h.setAttribute('tabindex', '-1'); target = h; }
+            }
+            if (target) { try { target.focus(); } catch (e) {} }
         }
 
         function formatDate(dateStr) {
@@ -3857,9 +3912,39 @@
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) {
-                    overlay.classList.remove('active');
+                    if (overlay.id) { closeModal(overlay.id); } else { overlay.classList.remove('active'); }
                 }
             });
+        });
+
+        // Keyboard: Escape closes the top-most modal; Tab is trapped within an open modal.
+        document.addEventListener('keydown', (e) => {
+            const open = Array.from(document.querySelectorAll('.modal-overlay.active'));
+            if (!open.length) return;
+            // Top-most = highest z-index (later-opened stacking modals bump z-index),
+            // falling back to last in DOM order on ties.
+            const modal = open.reduce((top, m) => {
+                const z = parseInt(getComputedStyle(m).zIndex, 10) || 0;
+                const tz = parseInt(getComputedStyle(top).zIndex, 10) || 0;
+                return z >= tz ? m : top;
+            }, open[0]);
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                if (modal.id) { closeModal(modal.id); } else { modal.classList.remove('active'); }
+                return;
+            }
+            if (e.key === 'Tab') {
+                const focusable = _modalFocusable(modal);
+                if (!focusable.length) { e.preventDefault(); return; }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                const active = document.activeElement;
+                if (e.shiftKey) {
+                    if (active === first || !modal.contains(active)) { e.preventDefault(); last.focus(); }
+                } else {
+                    if (active === last || !modal.contains(active)) { e.preventDefault(); first.focus(); }
+                }
+            }
         });
 
         // Auto-update: reload to a newer deployed build when idle (no modal open), so the
