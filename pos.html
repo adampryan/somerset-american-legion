@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260818-2"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260818-3"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -240,7 +240,7 @@
     // Who the sale is attributed to. Embedded → the logged-in user; standalone → the roster picker.
     function serverInfo(){
       if(EMBEDDED && embeddedUser) return { server_id:null, server_name: embeddedUser.name };
-      const pb=pinBartender(); if(pb) return { server_id: pb.id, server_name: pb.name };
+      const pb=pinBartender(); if(pb) return { server_id:null, server_name: pb.name }; // pb.id is a users id, not a roster id
       const sel=$('server'); if(!sel) return { server_id:null, server_name:null };
       const opt=sel.options[sel.selectedIndex]; return { server_id: sel.value?parseInt(sel.value,10):null, server_name:(sel.value&&opt)?opt.text:null };
     }

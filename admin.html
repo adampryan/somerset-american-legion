@@ -1365,6 +1365,15 @@
                         <input type="password" id="newUserPassword" autocomplete="new-password">
                     </div>
                     <div class="form-group">
+                        <label for="newUserPosPin">POS PIN (4-8 digits)</label>
+                        <input type="text" id="newUserPosPin" inputmode="numeric" autocomplete="off">
+                        <label style="font-weight:normal;font-size:0.85em;margin-top:4px;">
+                            <input type="checkbox" id="newUserPosPinClear" style="width:auto;margin-right:6px;">
+                            Remove this user's PIN
+                        </label>
+                        <small style="color:#666;display:block;margin-top:4px;">Unlocks the bar register as this person — their sales are attributed to them.</small>
+                    </div>
+                    <div class="form-group">
                         <label for="newUserRole">Access level</label>
                         <select id="newUserRole" onchange="applyAccessPreset()">
                             <option value="bartender">Bartender — POS + Tip-Out only</option>
@@ -1521,15 +1530,6 @@
                     <div class="form-group">
                         <label for="bartenderNotes">Notes</label>
                         <textarea id="bartenderNotes" rows="2" placeholder="Availability, preferences, etc."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="bartenderPin">Personal POS PIN (4-8 digits)</label>
-                        <input type="text" id="bartenderPin" inputmode="numeric" autocomplete="off"
-                               placeholder="Leave blank to keep the current PIN">
-                        <label style="font-weight:normal;font-size:0.85em;margin-top:4px;">
-                            <input type="checkbox" id="bartenderPinClear" style="width:auto;margin-right:6px;">
-                            Remove this bartender's PIN
-                        </label>
                     </div>
                     <div class="form-group">
                         <label style="display:flex;align-items:center;cursor:pointer;">
@@ -3334,7 +3334,7 @@
                 <tr>
                     <td>${escapeHtml(u.name)}</td>
                     <td>${escapeHtml(u.email)}<br><small style="color:#666">${permSummary}</small></td>
-                    <td><span class="badge badge-approved">${lvlLabel}</span></td>
+                    <td><span class="badge badge-approved">${lvlLabel}</span>${u.has_pin ? ' <span class="badge" title="Has a personal POS PIN">PIN</span>' : ''}</td>
                     <td>
                         <button class="btn btn-sm ${u.email_notifications ? 'btn-success' : ''}"
                                 onclick="toggleNotifications(${u.id}, ${!u.email_notifications})"
@@ -3425,7 +3425,7 @@
                             <td>${b.phone ? `<a href="tel:${escapeHtml(b.phone)}">${escapeHtml(b.phone)}</a>` : '-'}</td>
                             <td><span class="badge ${b.active ? 'badge-paid' : 'badge-cancelled'}">
                                 ${b.active ? 'Active' : 'Inactive'}
-                            </span>${b.has_pin ? ' <span class="badge" title="Has a personal POS PIN">PIN</span>' : ''}</td>
+                            </span></td>
                             <td class="actions">
                                 <button class="btn btn-sm" onclick="editBartender(${b.id})" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -3453,8 +3453,6 @@
             document.getElementById('bartenderPhone').value = '';
             document.getElementById('bartenderNotes').value = '';
             document.getElementById('bartenderActive').checked = true;
-            document.getElementById('bartenderPin').value = '';
-            document.getElementById('bartenderPinClear').checked = false;
             openModal('bartenderModal');
         }
 
@@ -3468,11 +3466,6 @@
             document.getElementById('bartenderPhone').value = b.phone || '';
             document.getElementById('bartenderNotes').value = b.notes || '';
             document.getElementById('bartenderActive').checked = !!b.active;
-            document.getElementById('bartenderPin').value = '';
-            document.getElementById('bartenderPin').placeholder = b.has_pin
-                ? 'Has a PIN — type a new one to change it'
-                : 'No PIN yet — type one to set it';
-            document.getElementById('bartenderPinClear').checked = false;
             openModal('bartenderModal');
         }
 
@@ -3486,23 +3479,10 @@
                 active: document.getElementById('bartenderActive').checked,
             };
             if (!data.name) { alert('Name is required'); return; }
-            // PIN semantics: checkbox clears it, a typed value sets it, both
-            // untouched leaves the current PIN alone (field omitted entirely).
-            const pin = document.getElementById('bartenderPin').value.trim();
-            if (document.getElementById('bartenderPinClear').checked) data.pos_pin = '';
-            else if (pin) {
-                if (!/^\d{4,8}$/.test(pin)) { alert('PIN must be 4-8 digits'); return; }
-                data.pos_pin = pin;
-            }
-            try {
-                if (id) {
-                    await api(`/api/admin/bartenders/${id}`, 'PUT', data);
-                } else {
-                    await api('/api/admin/bartenders', 'POST', data);
-                }
-            } catch (err) {
-                alert(err.message);   // e.g. "That PIN is already in use"
-                return;
+            if (id) {
+                await api(`/api/admin/bartenders/${id}`, 'PUT', data);
+            } else {
+                await api('/api/admin/bartenders', 'POST', data);
             }
             closeModal('bartenderModal');
             loadBartenders();
@@ -3983,6 +3963,9 @@
             document.getElementById('newUserPassword').value = '';
             document.getElementById('newUserPassword').required = true;
             document.getElementById('userPwLabel').textContent = 'Password';
+            document.getElementById('newUserPosPin').value = '';
+            document.getElementById('newUserPosPin').placeholder = 'Optional';
+            document.getElementById('newUserPosPinClear').checked = false;
             document.getElementById('newUserRole').value = 'bartender';
             // Re-enable name/email — editUser() disables them and never restored
             // them, so opening Add after an Edit left the fields permanently greyed.
@@ -4005,6 +3988,11 @@
             document.getElementById('newUserPassword').value = '';
             document.getElementById('newUserPassword').required = false;
             document.getElementById('userPwLabel').textContent = 'New password (leave blank to keep)';
+            document.getElementById('newUserPosPin').value = '';
+            document.getElementById('newUserPosPin').placeholder = u.has_pin
+                ? 'Has a PIN — type a new one to change it'
+                : 'No PIN yet — type one to set it';
+            document.getElementById('newUserPosPinClear').checked = false;
             const lvl = detectLevel(u);
             document.getElementById('newUserRole').value = lvl;
             renderPermChecks(u.role === 'webmaster' ? [] : (u.permissions || []));
@@ -4018,16 +4006,26 @@
             const role = level === 'webmaster' ? 'webmaster' : 'officer';
             const permissions = [...document.querySelectorAll('.perm-check:checked')].map(c => c.value);
             const password = document.getElementById('newUserPassword').value;
+            // PIN semantics: checkbox clears, a typed value sets, both untouched keeps.
+            let pos_pin;
+            const pinVal = document.getElementById('newUserPosPin').value.trim();
+            if (document.getElementById('newUserPosPinClear').checked) pos_pin = '';
+            else if (pinVal) {
+                if (!/^\d{4,8}$/.test(pinVal)) { alert('POS PIN must be 4-8 digits'); return; }
+                pos_pin = pinVal;
+            }
             try {
                 if (id) {
                     const body = { role, permissions };
                     if (password) body.password = password;
+                    if (pos_pin !== undefined) body.pos_pin = pos_pin;
                     await api(`/api/admin/users/${id}`, 'PUT', body);
                 } else {
                     await api('/api/admin/users', 'POST', {
                         name: document.getElementById('newUserName').value,
                         email: document.getElementById('newUserEmail').value,
-                        password, role, permissions
+                        password, role, permissions,
+                        ...(pos_pin !== undefined ? { pos_pin } : {})
                     });
                 }
                 document.getElementById('newUserName').disabled = false;
