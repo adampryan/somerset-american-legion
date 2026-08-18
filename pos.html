@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260818-1"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260818-2"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -203,10 +203,14 @@
         const j=await r.json();
         if(!r.ok) throw new Error(j.error||'Wrong passcode');
         TOKEN=j.token; localStorage.setItem('pos_token',TOKEN);
+        // Personal PIN → the session knows who's ringing; shared house code → roster picker.
+        if(j.bartender) localStorage.setItem('pos_bartender',JSON.stringify(j.bartender));
+        else localStorage.removeItem('pos_bartender');
         startApp();
       }catch(e){ $('lockerr').textContent=e.message; $('pin').value=''; }
     }
-    function lock(){ localStorage.removeItem('pos_token'); TOKEN=''; location.reload(); }
+    function pinBartender(){ try{ return JSON.parse(localStorage.getItem('pos_bartender')||'null'); }catch(e){ return null; } }
+    function lock(){ localStorage.removeItem('pos_token'); localStorage.removeItem('pos_bartender'); TOKEN=''; location.reload(); }
 
     async function startApp(){
       $('lock').classList.add('hidden'); $('app').classList.remove('hidden');
@@ -214,6 +218,9 @@
         // Behind the admin login: the logged-in user IS the bartender — show their name, no picker.
         $('lockBtn').style.display='none';
         $('server').outerHTML = `<span id="serverLabel" style="color:#fff;font-weight:600;padding:6px 8px;white-space:nowrap;"><i class="fa"></i>👤 ${embeddedUser.name}</span>`;
+      } else if(pinBartender()){
+        // Personal-PIN session: the login IS the bartender — show the name, no picker.
+        $('server').outerHTML = `<span id="serverLabel" style="color:#fff;font-weight:600;padding:6px 8px;white-space:nowrap;">👤 ${pinBartender().name}</span>`;
       } else {
         if(EMBEDDED) $('lockBtn').style.display='none';
         await loadBartenders();
@@ -233,12 +240,14 @@
     // Who the sale is attributed to. Embedded → the logged-in user; standalone → the roster picker.
     function serverInfo(){
       if(EMBEDDED && embeddedUser) return { server_id:null, server_name: embeddedUser.name };
+      const pb=pinBartender(); if(pb) return { server_id: pb.id, server_name: pb.name };
       const sel=$('server'); if(!sel) return { server_id:null, server_name:null };
       const opt=sel.options[sel.selectedIndex]; return { server_id: sel.value?parseInt(sel.value,10):null, server_name:(sel.value&&opt)?opt.text:null };
     }
     // A bartender must be identified before an order is created/charged.
     function requireServer(){
       if(EMBEDDED && embeddedUser) return true;   // logged-in user is the bartender
+      if(pinBartender()) return true;             // personal-PIN login is the bartender
       if(serverInfo().server_id) return true;
       toast('Select a bartender first');
       const s=$('server'); if(s){ s.focus(); s.style.outline='3px solid #b22234'; setTimeout(()=>s.style.outline='',1600); }

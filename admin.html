@@ -1523,6 +1523,15 @@
                         <textarea id="bartenderNotes" rows="2" placeholder="Availability, preferences, etc."></textarea>
                     </div>
                     <div class="form-group">
+                        <label for="bartenderPin">Personal POS PIN (4-8 digits)</label>
+                        <input type="text" id="bartenderPin" inputmode="numeric" autocomplete="off"
+                               placeholder="Leave blank to keep the current PIN">
+                        <label style="font-weight:normal;font-size:0.85em;margin-top:4px;">
+                            <input type="checkbox" id="bartenderPinClear" style="width:auto;margin-right:6px;">
+                            Remove this bartender's PIN
+                        </label>
+                    </div>
+                    <div class="form-group">
                         <label style="display:flex;align-items:center;cursor:pointer;">
                             <input type="checkbox" id="bartenderActive" checked style="width:auto;margin-right:10px;">
                             <span>Active (receives open-shift notifications)</span>
@@ -3416,7 +3425,7 @@
                             <td>${b.phone ? `<a href="tel:${escapeHtml(b.phone)}">${escapeHtml(b.phone)}</a>` : '-'}</td>
                             <td><span class="badge ${b.active ? 'badge-paid' : 'badge-cancelled'}">
                                 ${b.active ? 'Active' : 'Inactive'}
-                            </span></td>
+                            </span>${b.has_pin ? ' <span class="badge" title="Has a personal POS PIN">PIN</span>' : ''}</td>
                             <td class="actions">
                                 <button class="btn btn-sm" onclick="editBartender(${b.id})" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -3444,6 +3453,8 @@
             document.getElementById('bartenderPhone').value = '';
             document.getElementById('bartenderNotes').value = '';
             document.getElementById('bartenderActive').checked = true;
+            document.getElementById('bartenderPin').value = '';
+            document.getElementById('bartenderPinClear').checked = false;
             openModal('bartenderModal');
         }
 
@@ -3457,6 +3468,11 @@
             document.getElementById('bartenderPhone').value = b.phone || '';
             document.getElementById('bartenderNotes').value = b.notes || '';
             document.getElementById('bartenderActive').checked = !!b.active;
+            document.getElementById('bartenderPin').value = '';
+            document.getElementById('bartenderPin').placeholder = b.has_pin
+                ? 'Has a PIN — type a new one to change it'
+                : 'No PIN yet — type one to set it';
+            document.getElementById('bartenderPinClear').checked = false;
             openModal('bartenderModal');
         }
 
@@ -3470,10 +3486,23 @@
                 active: document.getElementById('bartenderActive').checked,
             };
             if (!data.name) { alert('Name is required'); return; }
-            if (id) {
-                await api(`/api/admin/bartenders/${id}`, 'PUT', data);
-            } else {
-                await api('/api/admin/bartenders', 'POST', data);
+            // PIN semantics: checkbox clears it, a typed value sets it, both
+            // untouched leaves the current PIN alone (field omitted entirely).
+            const pin = document.getElementById('bartenderPin').value.trim();
+            if (document.getElementById('bartenderPinClear').checked) data.pos_pin = '';
+            else if (pin) {
+                if (!/^\d{4,8}$/.test(pin)) { alert('PIN must be 4-8 digits'); return; }
+                data.pos_pin = pin;
+            }
+            try {
+                if (id) {
+                    await api(`/api/admin/bartenders/${id}`, 'PUT', data);
+                } else {
+                    await api('/api/admin/bartenders', 'POST', data);
+                }
+            } catch (err) {
+                alert(err.message);   // e.g. "That PIN is already in use"
+                return;
             }
             closeModal('bartenderModal');
             loadBartenders();
