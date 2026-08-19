@@ -789,7 +789,10 @@
         </header>
         
         <div class="tabs">
-            <button class="tab active" data-panel="rentals">
+            <button class="tab" data-panel="setup" data-perm="users">
+                        <i class="fas fa-clipboard-check"></i> Setup
+                    </button>
+                    <button class="tab active" data-panel="rentals">
                 <i class="fas fa-calendar-alt"></i> Rentals
             </button>
             <button class="tab" data-panel="shifts">
@@ -825,7 +828,24 @@
         </div>
         
         <div class="content">
-            <!-- Rentals Panel -->
+            <!-- Setup Panel -->
+                <div class="panel" id="setupPanel">
+                    <div class="panel-header">
+                        <h2>Getting started</h2>
+                        <button class="btn btn-sm" onclick="loadSetup()">
+                            <i class="fas fa-rotate"></i> Re-check
+                        </button>
+                    </div>
+                    <div class="panel-body">
+                        <p style="color:#666;margin:0 0 16px">
+                            The things only you can tell the system. Everything here
+                            is set up once and then this tab goes away.
+                        </p>
+                        <div id="setupList"></div>
+                    </div>
+                </div>
+
+                <!-- Rentals Panel -->
             <div class="panel active" id="rentalsPanel">
                 <div class="panel-header">
                     <h2>Hall Rentals</h2>
@@ -1785,7 +1805,9 @@
                 document.getElementById(tab.dataset.panel + 'Panel').classList.add('active');
 
                 // Load data for specific panels
-                if (tab.dataset.panel === 'subscribers') {
+                if (tab.dataset.panel === 'setup') {
+                    loadSetup();
+                } else if (tab.dataset.panel === 'subscribers') {
                     loadSubscribers();
                 } else if (tab.dataset.panel === 'shifts') {
                     loadShifts();
@@ -1831,6 +1853,106 @@
             // Legacy login cached before permissions existed: broad default (no admin tabs).
             return !['users', 'finance'].includes(section);
         }
+
+        // ─── Getting started ──────────────────────────────────────────
+        // A newly provisioned post arrives with a generic bar menu, an
+        // empty chart of accounts and no opening balances — deliberately,
+        // because guessing a post's money is worse than leaving it blank.
+        // Without this the first week is a phone call. The tab hides
+        // itself once there is nothing left to do.
+        const SETUP_TEMPLATE_PRODUCTS = [
+            'Domestic draft','Import draft','Domestic bottle','Craft / IPA','Seltzer',
+            'Well drink','Call drink','Wine','Soda','Water'
+        ];
+        async function loadSetup() {
+            const el = document.getElementById('setupList');
+            if (!el) return;
+            el.innerHTML = '<p style="color:#888">Checking…</p>';
+            let accounts = [], products = [], users = [], rentals = [];
+            try {
+                [accounts, products, users, rentals] = await Promise.all([
+                    api('/admin/finance/accounts').catch(() => []),
+                    api('/admin/pos/products').catch(() => []),
+                    api('/admin/users').catch(() => []),
+                    api('/admin/rentals').catch(() => [])
+                ]);
+            } catch (e) { /* fall through — an empty answer is still an answer */ }
+            const arr = x => Array.isArray(x) ? x : (x && Array.isArray(x.results) ? x.results : []);
+            accounts = arr(accounts); products = arr(products);
+            users = arr(users); rentals = arr(rentals);
+
+            const untouched = products.filter(p =>
+                SETUP_TEMPLATE_PRODUCTS.includes((p.name || '').trim())).length;
+            const steps = [
+                {
+                    done: accounts.length > 0,
+                    title: 'Add your bank accounts and opening balances',
+                    why: 'Nothing was filled in for you — a guess at your balances would be worse than a blank. Enter what each account held on the day you started.',
+                    go: 'finance', cta: 'Open Finance'
+                },
+                {
+                    done: products.length > 0 && untouched === 0,
+                    title: 'Replace the starter bar menu with your own prices',
+                    why: untouched
+                        ? untouched + ' item' + (untouched === 1 ? '' : 's') + ' still carry the generic starter names and prices.'
+                        : 'Your menu and prices are set.',
+                    go: 'pos', cta: 'Open POS'
+                },
+                {
+                    done: users.length >= 2,
+                    title: 'Give a second officer a login',
+                    why: 'One login is how a post loses access when an officer moves away. Two people should always be able to get in.',
+                    go: 'users', cta: 'Open Officers'
+                },
+                {
+                    done: rentals.length > 0,
+                    title: 'Put your first hall rental in',
+                    why: 'Even a past one. It proves the calendar, the deposit and the confirmation email all work before a real customer depends on them.',
+                    go: 'rentals', cta: 'Open Rentals'
+                }
+            ];
+            const left = steps.filter(s => !s.done).length;
+            if (!left) {
+                el.innerHTML = '<div style="padding:18px;border:1px solid #cfe5d6;background:#eef6f0;border-radius:6px">'
+                    + '<strong>You are set up.</strong><br>'
+                    + '<span style="color:#555">This tab will stop appearing.</span></div>';
+                const t = document.querySelector('.tab[data-panel="setup"]');
+                if (t) t.style.display = 'none';
+                return;
+            }
+            el.innerHTML = '<p style="margin:0 0 14px"><strong>' + left + '</strong> of '
+                + steps.length + ' still to do.</p>'
+                + steps.map(s => {
+                    const c = s.done ? '#2e7d32' : '#b26a00';
+                    const icon = s.done ? 'fa-circle-check' : 'fa-circle-exclamation';
+                    return '<div style="display:flex;gap:12px;padding:14px;border:1px solid #e0e0e0;'
+                        + 'border-left:3px solid ' + c + ';border-radius:5px;margin-bottom:10px;'
+                        + (s.done ? 'opacity:.6' : '') + '">'
+                        + '<i class="fas ' + icon + '" style="color:' + c + ';margin-top:3px"></i>'
+                        + '<div style="flex:1">'
+                        + '<div style="font-weight:600">' + s.title + '</div>'
+                        + '<div style="color:#666;font-size:.92em;margin-top:3px">' + s.why + '</div>'
+                        + (s.done ? '' : '<button class="btn btn-sm" style="margin-top:9px" '
+                            + 'onclick="gotoPanel(\'' + s.go + '\')">' + s.cta + '</button>')
+                        + '</div></div>';
+                }).join('');
+        }
+        function gotoPanel(name) {
+            const t = document.querySelector('.tab[data-panel="' + name + '"]');
+            if (t) t.click();
+        }
+
+        // Check once at login: a post with work outstanding should be shown it,
+        // not have to go looking. A finished post never sees the tab at all.
+        function setupCheckOnLogin() {
+            const t = document.querySelector('.tab[data-panel="setup"]');
+            if (!t || t.style.display === 'none') return;
+            loadSetup().then(() => {
+                const list = document.getElementById('setupList');
+                if (list && list.textContent.includes('still to do')) t.click();
+            }).catch(() => {});
+        }
+
         function applyPermissions() {
             document.querySelectorAll('.tab').forEach(tab => {
                 // A tab may gate on a different permission than its panel id (e.g. Inventory uses 'bar').
@@ -2174,6 +2296,7 @@
             document.getElementById('usersTab').style.display = '';
             document.getElementById('financeTab').style.display = '';
             applyPermissions();
+            setupCheckOnLogin();
 
             // Load data only for sections this user can access.
             if (can('rentals')) loadRentals();
