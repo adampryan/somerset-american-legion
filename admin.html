@@ -445,6 +445,26 @@
 
         .panel.active { display: block; }
 
+        /* Account panel: the agreement reads as a document, not a form. */
+        .agreement {
+            max-height: 30rem; overflow-y: auto; padding: 1rem 1.25rem;
+            border: 1px solid #ddd; border-radius: 4px; background: #fcfcfa;
+            font-size: .93rem; line-height: 1.6;
+        }
+        .agreement h3 { margin: 1.4rem 0 .5rem; font-size: 1rem; }
+        .agreement h4 { margin: 1rem 0 .4rem; font-size: .95rem; }
+        .agreement li { margin: .3rem 0; }
+        .sign-box {
+            margin-top: 1.25rem; padding: 1rem 1.25rem;
+            border: 2px solid #c8102e; border-radius: 4px; background: #fff8f8;
+        }
+        .sign-box h4 { margin: 0 0 .75rem; }
+        .sign-box input[type="text"] {
+            width: 100%; max-width: 22rem; padding: .5rem;
+            border: 1px solid #bbb; border-radius: 3px; font-size: 1rem;
+        }
+        .muted { color: #666; font-size: .88rem; }
+
         .panel-header {
             padding: 22px 24px;
             border-bottom: 1px solid var(--gray-200);
@@ -825,6 +845,9 @@
             <button class="tab" data-panel="finance" id="financeTab" style="display:none;">
                 <i class="fas fa-file-invoice-dollar"></i> Finance
             </button>
+            <button class="tab" data-panel="account">
+                <i class="fas fa-file-signature"></i> Account
+            </button>
         </div>
         
         <div class="content">
@@ -846,6 +869,17 @@
                 </div>
 
                 <!-- Rentals Panel -->
+            <!-- Account Panel: the agreement with OneWeek Labs, and the billing -->
+            <div class="panel" id="accountPanel">
+                <div class="panel-header">
+                    <h2>Account</h2>
+                </div>
+                <div class="panel-body">
+                    <div id="accountBilling"></div>
+                    <div id="accountContract">Loading…</div>
+                </div>
+            </div>
+
             <div class="panel active" id="rentalsPanel">
                 <div class="panel-header">
                     <h2>Hall Rentals</h2>
@@ -1805,7 +1839,9 @@
                 document.getElementById(tab.dataset.panel + 'Panel').classList.add('active');
 
                 // Load data for specific panels
-                if (tab.dataset.panel === 'setup') {
+                if (tab.dataset.panel === 'account') {
+                    loadAccount();
+                } else if (tab.dataset.panel === 'setup') {
                     loadSetup();
                 } else if (tab.dataset.panel === 'subscribers') {
                     loadSubscribers();
@@ -1864,6 +1900,144 @@
             'Domestic draft','Import draft','Domestic bottle','Craft / IPA','Seltzer',
             'Well drink','Call drink','Wine','Soda','Water'
         ];
+        // ── Account: what we signed with OneWeek Labs, and how we pay ──
+        // The agreement lives in our own database, so it can be read here
+        // without asking anybody for a copy.
+        async function loadAccount() {
+            const box = document.getElementById('accountContract');
+            const bill = document.getElementById('accountBilling');
+            box.innerHTML = 'Loading…';
+            bill.innerHTML = '';
+            let data;
+            try {
+                data = await api('/api/admin/account');
+            } catch (e) {
+                box.innerHTML = '<p>Could not load the account.</p>';
+                return;
+            }
+
+            const b = data.billing;
+            if (b) {
+                const amount = b.amount_cents != null
+                    ? '$' + (b.amount_cents / 100).toLocaleString() : '—';
+                const per = b.cycle === 'annual' ? 'a year' : 'a month';
+                const how = { card: 'Credit card', bank: 'Bank transfer (ACH)',
+                              check: 'Check' }[b.payment_method] || '—';
+                bill.innerHTML =
+                    '<h3>Billing</h3><table class="data-table"><tbody>'
+                    + row('Plan', b.plan_name || '—')
+                    + row('Amount', amount + ' ' + per)
+                    + row('Paying by', how + (b.payment_last4
+                          ? ' ending ' + b.payment_last4 : ''))
+                    + row('Status', b.status || '—')
+                    + row('Next invoice', b.current_period_end
+                          ? new Date(b.current_period_end).toLocaleDateString() : '—')
+                    + '</tbody></table>'
+                    + (b.portal_url
+                        ? '<p><a class="btn" href="' + b.portal_url
+                          + '" target="_blank" rel="noopener">Invoices and payment method</a></p>'
+                        : '');
+            }
+
+            const c = data.contract;
+            if (!c) {
+                box.innerHTML = '<h3>Service agreement</h3>'
+                    + '<p>Nothing to sign yet. OneWeek Labs will publish the '
+                    + 'agreement here when it is ready.</p>';
+                return;
+            }
+
+            const signed = c.status === 'signed';
+            let html = '<h3>' + escapeHtml(c.title || 'Service Agreement') + '</h3>';
+            if (signed) {
+                html += '<p class="muted">Signed '
+                    + new Date(c.signed_at).toLocaleDateString() + ' by '
+                    + escapeHtml(c.signer_name || '') + ', '
+                    + escapeHtml(c.signer_title || '') + '. Document '
+                    + escapeHtml(c.document_id) + '.</p>';
+            }
+            html += '<div class="agreement">' + renderAgreement(c.body_md) + '</div>';
+
+            if (!signed && data.can_sign) {
+                html += '<div class="sign-box">'
+                    + '<h4>Sign</h4>'
+                    + '<p><label><input type="checkbox" id="esignConsent"> '
+                    + 'I agree that typing my name below is my signature, and '
+                    + 'that it counts the same as signing on paper.</label></p>'
+                    + '<p><label>Your full name<br>'
+                    + '<input type="text" id="esignName" autocomplete="name" '
+                    + 'placeholder="Type your full name"></label></p>'
+                    + '<p><label>Your title<br>'
+                    + '<input type="text" id="esignTitle" value="Commander"></label></p>'
+                    + '<p><button class="btn btn-primary" id="esignBtn">'
+                    + 'Sign this agreement</button></p>'
+                    + '<p class="muted">We record your name, title, the time, and '
+                    + 'the address you signed from.</p></div>';
+            } else if (!signed) {
+                html += '<p class="muted">Signing this commits the Post, so it '
+                    + 'has to be the Commander.</p>';
+            }
+            box.innerHTML = html;
+
+            const btn = document.getElementById('esignBtn');
+            if (btn) btn.addEventListener('click', () => signAgreement(c.sha256));
+        }
+
+        function row(label, value) {
+            return '<tr><td><strong>' + escapeHtml(label) + '</strong></td><td>'
+                 + escapeHtml(String(value)) + '</td></tr>';
+        }
+
+        // Just enough markdown for the agreement: headings, bold, lists, rules.
+        function renderAgreement(md) {
+            const lines = (md || '').split('\n');
+            let out = '', inList = false, inTable = false;
+            for (const line of lines) {
+                let t = escapeHtml(line).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                if (/^\|\s*-+/.test(line)) continue;
+                if (line.startsWith('|')) {
+                    if (!inTable) { out += '<table class="data-table">'; inTable = true; }
+                    const cells = t.trim().replace(/^\||\|$/g, '').split('|');
+                    out += '<tr>' + cells.map(c => '<td>' + c.trim() + '</td>').join('') + '</tr>';
+                    continue;
+                }
+                if (inTable) { out += '</table>'; inTable = false; }
+                if (line.startsWith('- ')) {
+                    if (!inList) { out += '<ul>'; inList = true; }
+                    out += '<li>' + t.slice(2) + '</li>';
+                    continue;
+                }
+                if (inList) { out += '</ul>'; inList = false; }
+                if (line.startsWith('### ')) out += '<h4>' + t.slice(4) + '</h4>';
+                else if (line.startsWith('## ')) out += '<h3>' + t.slice(3) + '</h3>';
+                else if (line.startsWith('# ')) out += '<h3>' + t.slice(2) + '</h3>';
+                else if (line.trim() === '---') out += '<hr>';
+                else if (line.trim()) out += '<p>' + t + '</p>';
+            }
+            if (inTable) out += '</table>';
+            if (inList) out += '</ul>';
+            return out;
+        }
+
+        async function signAgreement(sha256) {
+            const consent = document.getElementById('esignConsent').checked;
+            const name = document.getElementById('esignName').value.trim();
+            const title = document.getElementById('esignTitle').value.trim();
+            if (!consent) return alert('Tick the box to agree that a typed name is your signature.');
+            if (name.length < 3) return alert('Type your full name to sign.');
+            if (!confirm('Sign this agreement as ' + name + '?')) return;
+            try {
+                await api('/api/admin/account/contract/sign', 'POST', {
+                    signature_typed: name, signer_name: name, signer_title: title,
+                    consent_esign: true, sha256: sha256,
+                });
+                alert('Signed. A copy stays on this page.');
+                loadAccount();
+            } catch (e) {
+                alert(e.message || 'Could not sign.');
+            }
+        }
+
         async function loadSetup() {
             const el = document.getElementById('setupList');
             if (!el) return;
