@@ -84,11 +84,21 @@
             max-width: 420px;
         }
 
+        /* A navy disc behind the emblem, matching the site header. Several
+           of these organizations publish their mark as a white knockout for
+           dark backgrounds, and on a white login box that is an invisible
+           logo rather than a missing one — harder to notice, worse to ship. */
         .login-logo {
             display: block;
-            width: 84px;
-            height: auto;
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
             margin: 0 auto 22px;
+            background: var(--navy, #0a3161);
+            border: 3px solid var(--gold, #c9a227);
+            border-radius: 50%;
+            padding: 10px;
+            box-sizing: content-box;
         }
 
         .login-box h1 {
