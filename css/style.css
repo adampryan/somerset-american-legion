@@ -4,6 +4,8 @@
 
 /* CSS Variables */
 :root {
+    /* The field the organization's emblem sits on. */
+    --emblem-bg: #0a3161;
     /* Primary Colors - Patriotic Theme (refreshed 2026: richer, cleaner) */
     --navy-deep: #081733;
     --navy-dark: #0d1f40;
@@ -209,7 +211,9 @@ h1, h2, h3, h4, h5, h6 {
 .logo-emblem {
     width: 80px;
     height: 80px;
-    background: var(--navy);
+    /* Per organization. Several of these marks are white knockouts that need
+       a dark field; the Elks USA logo is navy-on-white and disappears on one. */
+    background: var(--emblem-bg, var(--navy));
     border-radius: 50%;
     display: flex;
     align-items: center;
