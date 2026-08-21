@@ -204,6 +204,7 @@ h1, h2, h3, h4, h5, h6 {
 .logo {
     display: flex;
     align-items: center;
+    min-width: 0;
     gap: var(--space-lg);
     text-decoration: none;
 }
@@ -222,14 +223,17 @@ h1, h2, h3, h4, h5, h6 {
     /* Bound the box, not the image. A square crest fills 108px; a wide
        wordmark like the VFW's would be squeezed to a third of that if both
        dimensions were pinned. */
-    max-height: 108px;
-    max-width: 230px;
+    max-height: 96px;
+    max-width: 150px;
     width: auto;
     height: auto;
 }
 
 .logo-text h1 {
-    font-size: 1.75rem;
+    /* Organization names vary a lot in length — "Somerset American Legion"
+       against "Swansea Veterans of Foreign Wars". A fixed size makes the
+       long ones wrap the whole header onto a second row, so it scales. */
+    font-size: clamp(1.05rem, 1.55vw, 1.6rem);
     color: var(--red);
     margin-bottom: var(--space-xs);
 }
