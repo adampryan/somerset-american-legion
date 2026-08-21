@@ -208,24 +208,24 @@ h1, h2, h3, h4, h5, h6 {
     text-decoration: none;
 }
 
+/* No disc, no ring. These are the organizations' own marks and they are
+   drawn to stand on their own — putting a gold circle around an emblem that
+   already has its own border is a frame around a frame, and it shrinks the
+   artwork to make room for itself. */
 .logo-emblem {
-    width: 80px;
-    height: 80px;
-    /* Per organization. Several of these marks are white knockouts that need
-       a dark field; the Elks USA logo is navy-on-white and disappears on one. */
-    background: var(--emblem-bg, var(--navy));
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 3px solid var(--gold);
-    box-shadow: var(--shadow-md);
 }
 
 .logo-emblem img {
-    width: 60px;
-    height: 60px;
-    object-fit: contain;
+    /* Bound the box, not the image. A square crest fills 108px; a wide
+       wordmark like the VFW's would be squeezed to a third of that if both
+       dimensions were pinned. */
+    max-height: 108px;
+    max-width: 230px;
+    width: auto;
+    height: auto;
 }
 
 .logo-text h1 {
