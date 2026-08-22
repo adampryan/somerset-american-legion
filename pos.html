@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260822-1"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260822-2"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -71,7 +71,7 @@
       .totals { padding:14px 16px; border-top:1px solid var(--line); background:var(--cream); }
       .totals .row { display:flex; justify-content:space-between; padding:3px 0; }
       .totals .grand { font-size:1.55rem; font-weight:800; color:var(--navy); }
-      .tips { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:10px 0; }
+      .tips { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0; }
       .tips button { padding:12px 2px; min-height:48px; border:2px solid var(--navy); background:var(--surface); color:var(--navy); border-radius:var(--r-btn); font-weight:700; font-size:.85rem; transition:transform .08s ease; }
       .tips button:active { transform:scale(.95); }
       .tips button.sel { background:var(--navy); color:#fff; }
@@ -387,7 +387,7 @@
         <button class="btn ghost" onclick="window._next()">Cancel</button>
         <div class="err" id="merr"></div>
       </div>`);
-      const opts=[['No tip',0],['15%',.15],['18%',.18],['20%',.20],['$',null]];
+      const opts=[['15%',.15],['18%',.18],['20%',.20],['$',null]];
       $('mTips').innerHTML=opts.map((o,i)=>`<button type="button" data-pct="${o[1]}" class="${o[1]===.15?'sel':''}">${o[0]}</button>`).join('');
       const elements=stripe.elements({clientSecret:j.clientSecret, fonts:[{cssSrc:'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap'}], appearance:{theme:'stripe',variables:{colorPrimary:'#002868',fontFamily:'"Source Sans 3",sans-serif',borderRadius:'8px'}}});
       elements.create('payment').mount('#pe');
