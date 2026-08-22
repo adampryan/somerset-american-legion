@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260822-2"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260822-3"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -181,6 +181,7 @@
     let EMBEDDED=false, embeddedUser=null;
     if(!TOKEN){ const adm=localStorage.getItem('legion_token'); if(adm){ TOKEN=adm; EMBEDDED=true; try{ embeddedUser=JSON.parse(localStorage.getItem('legion_user')||'null'); }catch(e){} } }
     let products=[], cart=[], curCat='all', orderId=null, splitWays=1, lastActivity=Date.now();
+    let openedFromTab=false;   // true when the current order is a reopened saved tab (so cancel/clear won't discard it)
     const stripe=window.Stripe?Stripe(PK):null;
     const $=id=>document.getElementById(id);
     const money=c=>'$'+(c/100).toFixed(2);
@@ -277,7 +278,7 @@
     function showRecipe(id){
       const p=products.find(x=>x.id===id); if(!p)return;
       const esc=(t)=>(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      modal(`<div class="modal" style="text-align:left;"><h2 style="text-align:center;color:var(--navy);">${esc(p.name)} — ${money(p.price)}</h2><p style="white-space:pre-wrap;line-height:1.55;font-size:1.02rem;">${esc(p.recipe)}</p><button class="btn primary" onclick="closeModal()">Close</button></div>`);
+      modal(`<div class="modal" style="text-align:left;"><h2 style="text-align:center;color:var(--navy);">${esc(p.name)} — ${money(p.price)}</h2><p style="white-space:pre-wrap;line-height:1.55;font-size:1.02rem;">${esc(p.recipe)}</p><button class="btn primary" onclick="window._close()">Close</button></div>`);
     }
 
     // ---------- cart ----------
@@ -289,8 +290,18 @@
       renderCart();
     }
     function chg(id,d){ const it=cart.find(x=>x.product_id===id); if(!it)return; it.qty+=d; if(it.qty<=0)cart=cart.filter(x=>x!==it); renderCart(); }
-    function resetOrder(){ cart=[]; orderId=null; splitWays=1; $('cartTitle').textContent='New Order'; renderCart(); } // start fresh
-    function clearItems(){ cart=[]; renderCart(); } // empty the view; keeps the tab context so Save persists it
+    function resetOrder(){ cart=[]; orderId=null; splitWays=1; openedFromTab=false; $('cartTitle').textContent='New Order'; renderCart(); } // start fresh
+    // Void a checkout order that was created just for an unpaid charge (NOT a reopened
+    // saved tab) — so a cancelled/cleared order never lingers in the tab list.
+    async function discardFreshOrder(){
+      if(orderId && !openedFromTab){
+        try{ await fetch(`${API}/api/pos/orders/${orderId}/void`,{method:'POST',headers:auth()}); }catch(e){}
+        orderId=null;
+      }
+    }
+    async function clearItems(){ await discardFreshOrder(); cart=[]; renderCart(); await refreshTabs(); } // discard the current order and its phantom tab
+    // Cancel out of a payment screen: drop any phantom order and return to the order screen (cart kept).
+    window._cancelPay=async()=>{ await discardFreshOrder(); closeModal(); renderCart(); await refreshTabs(); };
     function subtotal(){ return cart.reduce((s,i)=>s+i.price*i.qty,0); }
     function renderCart(){
       if(!cart.length){ $('cartItems').innerHTML='<p style="color:#999;text-align:center;margin-top:30px;">Tap items to add</p>'; }
@@ -333,7 +344,7 @@
         <h2>Cash Payment</h2>
         <div style="font-size:2.2rem;color:var(--navy);font-weight:700;margin:14px 0;">${money(base)}</div>
         <button class="btn primary" id="cpay" style="background:#2e7d32;">Record ${money(base)} Cash</button>
-        <button class="btn ghost" onclick="window._close()">Cancel</button>
+        <button class="btn ghost" onclick="window._cancelPay()">Cancel</button>
         <div class="err" id="cerr"></div>
       </div>`);
       $('cpay').addEventListener('click',async()=>{
@@ -366,7 +377,7 @@
 
     // QR
     function qrModal(j){
-      modal(`<div class="modal"><h2>Scan to Pay</h2><p>Customer scans, adds a tip, and pays on their phone.</p><div id="qrbox"></div><p style="word-break:break-all;font-size:.75rem;color:#888;">${j.pay_url}</p><div id="qrstatus">Waiting for payment…</div><button class="btn ghost" onclick="window._next()">Done / New Order</button></div>`);
+      modal(`<div class="modal"><h2>Scan to Pay</h2><p>Customer scans, adds a tip, and pays on their phone.</p><div id="qrbox"></div><p style="word-break:break-all;font-size:.75rem;color:#888;">${j.pay_url}</p><div id="qrstatus">Waiting for payment…</div><button class="btn ghost" onclick="window._cancelPay()">Cancel</button></div>`);
       new QRCode($('qrbox'),{text:j.pay_url,width:230,height:230,colorDark:'#002868'});
       poll(orderId, ()=>{ saleDone('Paid — thank you!'); });
     }
@@ -384,7 +395,7 @@
         <div style="display:flex;justify-content:space-between;border-top:2px solid var(--navy);padding-top:8px;margin-top:4px;font-size:1.35rem;color:var(--navy);"><strong>Total</strong><strong id="mTotal">${money(base)}</strong></div>
         <div id="pe" style="margin-top:14px;"></div>
         <button class="btn primary" id="mpay">Pay ${money(base)}</button>
-        <button class="btn ghost" onclick="window._next()">Cancel</button>
+        <button class="btn ghost" onclick="window._cancelPay()">Cancel</button>
         <div class="err" id="merr"></div>
       </div>`);
       const opts=[['15%',.15],['18%',.18],['20%',.20],['$',null]];
@@ -451,7 +462,7 @@
     }
     window._openTab=async(id)=>{
       const r=await fetch(`${API}/api/pos/orders/${id}`,{headers:auth()}); const o=await r.json();
-      orderId=id; cart=o.items.map(i=>({product_id:i.product_id,name:i.name,price:i.unit_price,qty:i.qty}));
+      orderId=id; openedFromTab=true; cart=o.items.map(i=>({product_id:i.product_id,name:i.name,price:i.unit_price,qty:i.qty}));
       $('cartTitle').textContent=(o.label||'Tab #'+id);
       closeModal(); renderCart();
     };
