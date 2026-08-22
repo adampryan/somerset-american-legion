@@ -106,12 +106,12 @@
             $('items').innerHTML=(d.items||[]).map(i=>`<div class="line"><span>${i.qty}× ${i.name}</span><span>${money(i.line_total)}</span></div>`).join('');
             $('amount').textContent=money(amount);
             renderTips();
-            selectTip(0);
+            selectTip(Math.round(amount*0.15));   // default the tip to 15%
             show('pay');
         }
         function renderTips(){
             const pcts=[0,0.15,0.18,0.20];
-            $('tips').innerHTML=pcts.map((p,i)=>`<div class="tipbtn${i===0?' sel':''}" data-pct="${p}">${p===0?'No tip':Math.round(p*100)+'%'}${p>0?`<small>${money(Math.round(amount*p))}</small>`:''}</div>`).join('')+`<div class="tipbtn" data-custom="1" style="grid-column:span 4;">Custom tip</div>`;
+            $('tips').innerHTML=pcts.map((p,i)=>`<div class="tipbtn${p===0.15?' sel':''}" data-pct="${p}">${p===0?'No tip':Math.round(p*100)+'%'}${p>0?`<small>${money(Math.round(amount*p))}</small>`:''}</div>`).join('')+`<div class="tipbtn" data-custom="1" style="grid-column:span 4;">Custom tip</div>`;
             $('tips').querySelectorAll('.tipbtn').forEach(b=>b.addEventListener('click',()=>{
                 $('tips').querySelectorAll('.tipbtn').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
                 if(b.dataset.custom){ $('custom-tip').style.display='block'; $('custom-tip').focus(); tipFromCustom(); }

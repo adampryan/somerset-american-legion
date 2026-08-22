@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260818-3"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260822-1"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -55,6 +55,8 @@
       .prod .n { font-weight:600; display:block; line-height:1.2; color:var(--ink); }
       .prod .p { color:var(--navy); font-weight:800; margin-top:4px; font-size:1.05rem; }
       .prod .stock { font-size:.7rem; color:var(--red); font-weight:600; }
+      .prod .rcp { font-size:.62rem; color:var(--navy); font-weight:700; margin-top:4px; border:1px solid var(--navy); border-radius:6px; padding:1px 7px; opacity:.85; letter-spacing:.02em; }
+      .prod .rcp:active { background:var(--navy); color:#fff; }
 
       /* Cart */
       .cart { width:340px; background:var(--surface); border-left:1px solid var(--line); display:flex; flex-direction:column; min-height:0; box-shadow:var(--sh-lg); }
@@ -260,14 +262,22 @@
       if(r.status===401){ lock(); return; }
       products=await r.json();
       const cats=['all',...[...new Set(products.map(p=>p.category))]];
-      $('cats').innerHTML=cats.map(c=>`<button class="cat${c===curCat?' sel':''}" data-c="${c}">${c==='all'?'All':c[0].toUpperCase()+c.slice(1)}</button>`).join('');
+      $('cats').innerHTML=cats.map(c=>`<button class="cat${c===curCat?' sel':''}" data-c="${c}">${CAT_LABELS[c]||(c[0].toUpperCase()+c.slice(1))}</button>`).join('');
       $('cats').querySelectorAll('.cat').forEach(b=>b.addEventListener('click',()=>{curCat=b.dataset.c;renderMenu();$('cats').querySelectorAll('.cat').forEach(x=>x.classList.toggle('sel',x.dataset.c===curCat));}));
       renderMenu();
     }
+    const CAT_LABELS={all:'All',mixed:'Mixed Drinks',na:'N/A'};
     function renderMenu(){
       const list=products.filter(p=>curCat==='all'||p.category===curCat);
-      $('grid').innerHTML=list.map(p=>`<button class="prod" data-id="${p.id}"><span class="n">${p.name}</span><span class="p">${money(p.price)}</span>${p.track_inventory?`<span class="stock">${p.stock_qty} left</span>`:''}</button>`).join('');
+      $('grid').innerHTML=list.map(p=>`<button class="prod" data-id="${p.id}"><span class="n">${p.name}</span><span class="p">${money(p.price)}</span>${p.track_inventory?`<span class="stock">${p.stock_qty} left</span>`:''}${p.recipe?`<span class="rcp" data-rid="${p.id}">ⓘ recipe</span>`:''}</button>`).join('');
       $('grid').querySelectorAll('.prod').forEach(b=>b.addEventListener('click',()=>addToCart(+b.dataset.id)));
+      // tapping the recipe chip shows the recipe without adding the drink to the cart
+      $('grid').querySelectorAll('.rcp').forEach(s=>s.addEventListener('click',e=>{e.stopPropagation();showRecipe(+s.dataset.rid);}));
+    }
+    function showRecipe(id){
+      const p=products.find(x=>x.id===id); if(!p)return;
+      const esc=(t)=>(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      modal(`<div class="modal" style="text-align:left;"><h2 style="text-align:center;color:var(--navy);">${esc(p.name)} — ${money(p.price)}</h2><p style="white-space:pre-wrap;line-height:1.55;font-size:1.02rem;">${esc(p.recipe)}</p><button class="btn primary" onclick="closeModal()">Close</button></div>`);
     }
 
     // ---------- cart ----------
@@ -378,7 +388,7 @@
         <div class="err" id="merr"></div>
       </div>`);
       const opts=[['No tip',0],['15%',.15],['18%',.18],['20%',.20],['$',null]];
-      $('mTips').innerHTML=opts.map((o,i)=>`<button type="button" data-pct="${o[1]}" class="${o[1]===0?'sel':''}">${o[0]}</button>`).join('');
+      $('mTips').innerHTML=opts.map((o,i)=>`<button type="button" data-pct="${o[1]}" class="${o[1]===.15?'sel':''}">${o[0]}</button>`).join('');
       const elements=stripe.elements({clientSecret:j.clientSecret, fonts:[{cssSrc:'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap'}], appearance:{theme:'stripe',variables:{colorPrimary:'#002868',fontFamily:'"Source Sans 3",sans-serif',borderRadius:'8px'}}});
       elements.create('payment').mount('#pe');
 
@@ -392,6 +402,7 @@
         else { $('mCustom').style.display='none'; setTip(Math.round(base*parseFloat(b.dataset.pct))); }
       }));
       $('mCustom').addEventListener('input',()=>setTip(Math.max(0,Math.round((parseFloat($('mCustom').value)||0)*100))));
+      setTip(Math.round(base*.15));   // default the card tip to 15%
 
       $('mpay').addEventListener('click',async()=>{
         $('mpay').disabled=true; const t=$('mpay').textContent; $('mpay').textContent='Processing…';
