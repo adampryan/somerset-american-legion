@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
     <title>Post 228 Bar POS</title>
-    <meta name="build" content="20260822-3"><!-- bump on every pos.html change; drives auto-update below -->
+    <meta name="build" content="20260822-4"><!-- bump on every pos.html change; drives auto-update below -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -81,7 +81,7 @@
       .pay .cash{ background:linear-gradient(180deg,#249245 0%,var(--green) 100%); }
       .pay .card{ background:linear-gradient(180deg,var(--navy-light) 0%,var(--navy) 100%); }
       .pay .qr{ background:linear-gradient(180deg,var(--red-light,#d5233c) 0%,var(--red) 100%); }
-      .sub { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 16px 16px; }
+      .sub { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:0 16px 16px; }
       .sub button { padding:14px; min-height:52px; border-radius:var(--r-btn); border:2px solid var(--navy); background:var(--surface); color:var(--navy); font-weight:600; transition:transform .08s ease,background .12s ease; }
       .sub button:active { transform:scale(.97); background:var(--cream); }
 
@@ -162,6 +162,7 @@
         </div>
         <div class="sub">
           <button onclick="saveTab()">💾 Save Tab</button>
+          <button onclick="window._tabCard()">💳 Tab Card</button>
           <button onclick="splitPrompt()">➗ Split</button>
         </div>
       </div>
@@ -448,9 +449,10 @@
       } else {
         if(!items.length){ toast('Cart is empty'); return; }
         if(!requireServer()) return;
-        const label=prompt('Tab name (customer):'); if(label===null)return;
-        const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items,label,...serverInfo()})});
-        if(r.ok){ toast('Tab saved'); resetOrder(); refreshTabs(); }
+        window._nameModal('Name this tab','',async(label)=>{
+          const r=await fetch(`${API}/api/pos/orders`,{method:'POST',headers:auth(),body:JSON.stringify({items,label:label||null,...serverInfo()})});
+          if(r.ok){ toast('Tab saved'+(label?`: ${label}`:'')); resetOrder(); refreshTabs(); }
+        });
       }
     }
     async function refreshTabs(){
@@ -458,7 +460,8 @@
     }
     async function openTabs(){
       const t=window._tabs||[];
-      modal(`<div class="modal"><h2>Open Tabs</h2><div class="tablist">${t.length?t.map(o=>`<div class="tab"><span>${o.label||'Tab #'+o.id}</span><span style="white-space:nowrap;">${money(o.subtotal)} <button class="btn primary" style="width:auto;padding:6px 12px;margin:0 0 0 8px;" onclick="window._openTab(${o.id})">Open</button> <button class="btn ghost" style="width:auto;padding:6px 10px;margin:0;" title="Close/discard tab" onclick="window._closeTab(${o.id})">✕</button></span></div>`).join(''):'<p>No open tabs.</p>'}</div><button class="btn ghost" onclick="window._close()">Done</button></div>`);
+      const btn='class="btn ghost" style="width:auto;padding:6px 9px;margin:0 0 0 4px;"';
+      modal(`<div class="modal"><h2>Open Tabs</h2><div class="tablist">${t.length?t.map(o=>`<div class="tab"><span>${_esc(o.label||'Tab #'+o.id)}${o.card_last4?` <span style="color:#1f7a37;font-size:.78rem;white-space:nowrap;">💳••${_esc(o.card_last4)}</span>`:''}</span><span style="white-space:nowrap;">${money(o.subtotal)} <button class="btn primary" style="width:auto;padding:6px 11px;margin:0 0 0 6px;" onclick="window._openTab(${o.id})">Open</button> <button ${btn} title="Rename" onclick="window._renameTab(${o.id})">✎</button> <button ${btn} title="Card on file" onclick="window._tabCardModal(${o.id})">💳</button> <button ${btn} title="Close/discard tab" onclick="window._closeTab(${o.id})">✕</button></span></div>`).join(''):'<p>No open tabs.</p>'}</div><button class="btn ghost" onclick="window._close()">Done</button></div>`);
     }
     window._openTab=async(id)=>{
       const r=await fetch(`${API}/api/pos/orders/${id}`,{headers:auth()}); const o=await r.json();
@@ -473,6 +476,104 @@
       await refreshTabs(); openTabs();
     };
     window._close=closeModal;
+
+    // ---------- tab naming ----------
+    const _esc=s=>String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+    const STRIPE_APPEARANCE={theme:'stripe',variables:{colorPrimary:'#002868',fontFamily:'"Source Sans 3",sans-serif',borderRadius:'8px'}};
+    const STRIPE_FONTS=[{cssSrc:'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap'}];
+    window._nameModal=(title,current,cb)=>{
+      modal(`<div class="modal"><h2>${_esc(title)}</h2>
+        <input id="nameInp" type="text" value="${_esc(current)}" placeholder="Customer name"
+          style="width:100%;padding:14px;font-size:1.15rem;border:1px solid #ccc;border-radius:10px;margin:14px 0;">
+        <button class="btn primary" id="nameSave">Save</button>
+        <button class="btn ghost" onclick="window._close()">Cancel</button></div>`);
+      setTimeout(()=>{ const i=$('nameInp'); if(i){ i.focus(); } },60);
+      $('nameSave').addEventListener('click',()=>{ const v=$('nameInp').value.trim(); closeModal(); cb(v); });
+    };
+    window._renameTab=(id)=>{
+      const t=(window._tabs||[]).find(x=>x.id===id);
+      window._nameModal('Name this tab',(t&&t.label)||'',async(label)=>{
+        await fetch(`${API}/api/pos/orders/${id}/label`,{method:'POST',headers:auth(),body:JSON.stringify({label})});
+        if(orderId===id) $('cartTitle').textContent=label||('Tab #'+id);
+        await refreshTabs(); openTabs();
+      });
+    };
+
+    // ---------- card on file ----------
+    window._tabCard=async()=>{
+      if(!orderId){ toast('Save the tab first, then add a card'); return; }
+      window._tabCardModal(orderId);
+    };
+    window._tabCardModal=async(id)=>{
+      let o; try{ o=await (await fetch(`${API}/api/pos/orders/${id}`,{headers:auth()})).json(); }catch(e){ toast('Could not load tab'); return; }
+      const due=(o.subtotal||0)-(o.amount_paid||0);
+      if(o.card_last4){
+        modal(`<div class="modal"><h2>Tab Card</h2>
+          <p style="font-size:1.25rem;margin:10px 0;">💳 ${_esc(o.card_brand||'Card')} ••${_esc(o.card_last4)} on file</p>
+          ${due>0?`<button class="btn primary" onclick="window._chargeCard(${id})">Charge ${money(due)} + tip to card</button>`:'<p style="color:#888;">Nothing left to charge.</p>'}
+          <button class="btn ghost" onclick="window._addCard(${id})">Replace card</button>
+          <button class="btn ghost" onclick="window._close()">Close</button></div>`);
+      } else {
+        modal(`<div class="modal"><h2>Tab Card</h2>
+          <p style="color:#666;">No card on file. Add the customer's card — it's saved now (no charge) and charged when the tab closes.</p>
+          <button class="btn primary" onclick="window._addCard(${id})">Add card</button>
+          <button class="btn ghost" onclick="window._close()">Close</button></div>`);
+      }
+    };
+    window._addCard=async(id)=>{
+      let j; try{ const r=await fetch(`${API}/api/pos/orders/${id}/setup-card`,{method:'POST',headers:auth()}); j=await r.json(); if(!r.ok)throw new Error(j.error||'setup failed'); }
+      catch(e){ toast(e.message); return; }
+      modal(`<div class="modal" style="text-align:left;">
+        <h2 style="text-align:center;">Add Card to Tab</h2>
+        <p style="color:#888;text-align:center;margin-top:0;">Saved now — charged when the tab closes.</p>
+        <div id="setupPe" style="margin-top:8px;"></div>
+        <button class="btn primary" id="saveCardBtn">Save Card</button>
+        <button class="btn ghost" onclick="window._close()">Cancel</button>
+        <div class="err" id="setupErr"></div></div>`);
+      const elements=stripe.elements({clientSecret:j.clientSecret,fonts:STRIPE_FONTS,appearance:STRIPE_APPEARANCE});
+      elements.create('payment').mount('#setupPe');
+      $('saveCardBtn').addEventListener('click',async()=>{
+        $('saveCardBtn').disabled=true; const t=$('saveCardBtn').textContent; $('saveCardBtn').textContent='Saving…';
+        const {error,setupIntent}=await stripe.confirmSetup({elements,confirmParams:{return_url:location.href},redirect:'if_required'});
+        if(error){ $('setupErr').textContent=error.message; $('setupErr').style.display='block'; $('saveCardBtn').disabled=false; $('saveCardBtn').textContent=t; return; }
+        if(setupIntent&&setupIntent.status==='succeeded'){
+          try{ const s=await (await fetch(`${API}/api/pos/orders/${id}/card-saved`,{method:'POST',headers:auth(),body:JSON.stringify({setup_intent_id:setupIntent.id})})).json();
+            closeModal(); toast(`Card on file: ${s.card_brand||'card'} ••${s.card_last4||''}`); refreshTabs();
+          }catch(e){ $('setupErr').textContent='Saved at Stripe but could not attach — try again.'; $('setupErr').style.display='block'; $('saveCardBtn').disabled=false; $('saveCardBtn').textContent=t; }
+        }
+      });
+    };
+    window._chargeCard=async(id)=>{
+      let o; try{ o=await (await fetch(`${API}/api/pos/orders/${id}`,{headers:auth()})).json(); }catch(e){ toast('load failed'); return; }
+      const base=(o.subtotal||0)-(o.amount_paid||0);
+      if(base<=0){ toast('Nothing left to charge'); return; }
+      let tipC=Math.round(base*.15);
+      modal(`<div class="modal" style="text-align:left;">
+        <h2 style="text-align:center;">Charge Card on File</h2>
+        <p style="text-align:center;color:#888;margin-top:0;">💳 ${_esc(o.card_brand||'Card')} ••${_esc(o.card_last4||'')}</p>
+        <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><strong>${money(base)}</strong></div>
+        <p style="margin:10px 0 4px;font-weight:600;">Tip</p>
+        <div class="tips" id="ocTips"></div>
+        <input type="number" id="ocCustom" placeholder="Custom tip ($)" min="0" step="0.50" style="display:none;width:100%;padding:9px;margin-top:8px;border:1px solid #ccc;border-radius:8px;">
+        <div style="display:flex;justify-content:space-between;margin-top:6px;"><span>Tip</span><strong id="ocTip">${money(tipC)}</strong></div>
+        <div style="display:flex;justify-content:space-between;border-top:2px solid var(--navy);padding-top:8px;margin-top:4px;font-size:1.3rem;color:var(--navy);"><strong>Total</strong><strong id="ocTotal">${money(base+tipC)}</strong></div>
+        <button class="btn primary" id="ocPay">Charge ${money(base+tipC)}</button>
+        <button class="btn ghost" onclick="window._close()">Cancel</button>
+        <div class="err" id="ocErr"></div></div>`);
+      const popts=[['15%',.15],['18%',.18],['20%',.20],['$',null]];
+      $('ocTips').innerHTML=popts.map(o2=>`<button type="button" data-pct="${o2[1]}" class="${o2[1]===.15?'sel':''}">${o2[0]}</button>`).join('');
+      function setOc(c){ tipC=c; $('ocTip').textContent=money(c); $('ocTotal').textContent=money(base+c); $('ocPay').textContent='Charge '+money(base+c); }
+      $('ocTips').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ $('ocTips').querySelectorAll('button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); if(b.dataset.pct==='null'){ $('ocCustom').style.display='block'; $('ocCustom').focus(); } else { $('ocCustom').style.display='none'; setOc(Math.round(base*parseFloat(b.dataset.pct))); } }));
+      $('ocCustom').addEventListener('input',()=>setOc(Math.max(0,Math.round((parseFloat($('ocCustom').value)||0)*100))));
+      $('ocPay').addEventListener('click',async()=>{
+        $('ocPay').disabled=true; const t=$('ocPay').textContent; $('ocPay').textContent='Charging…';
+        try{ const j=await (await fetch(`${API}/api/pos/orders/${id}/charge`,{method:'POST',headers:auth(),body:JSON.stringify({method:'oncard',tip:tipC})})).json();
+          if(j.error)throw new Error(j.error);
+          if(j.paid){ if(orderId===id){ saleDone(`Tab closed — ${money(base+tipC)} on card`); } else { closeModal(); toast(`Tab closed — ${money(base+tipC)} on card`); refreshTabs(); } }
+          else { closeModal(); toast('Payment recorded'); refreshTabs(); }
+        }catch(e){ $('ocErr').textContent=e.message; $('ocErr').style.display='block'; $('ocPay').disabled=false; $('ocPay').textContent=t; }
+      });
+    };
 
     // ---------- split ----------
     function splitPrompt(){
