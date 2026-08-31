@@ -1161,6 +1161,7 @@
                     <button class="subtab" data-sub="transactions"><i class="fas fa-list"></i> Transactions</button>
                     <button class="subtab" data-sub="import"><i class="fas fa-file-import"></i> Import CSV</button>
                     <button class="subtab" data-sub="reconcile"><i class="fas fa-square-check"></i> Reconcile</button>
+                    <button class="subtab" data-sub="reports"><i class="fas fa-chart-column"></i> Reports</button>
                     <button class="subtab" data-sub="officer"><i class="fas fa-file-invoice-dollar"></i> Officer Report</button>
                     <button class="subtab" data-sub="downloads"><i class="fas fa-download"></i> Downloads</button>
                 </div>
@@ -1309,6 +1310,26 @@
                 </div>
 
                 <!-- Officer Report (existing) -->
+                <div class="subpanel" id="finSubReports">
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
+                        <div><label class="form-label" for="finRepFrom" style="font-size:12px;">From</label>
+                            <input type="date" id="finRepFrom" class="form-input" style="max-width:170px;"></div>
+                        <div><label class="form-label" for="finRepTo" style="font-size:12px;">To</label>
+                            <input type="date" id="finRepTo" class="form-input" style="max-width:170px;"></div>
+                        <div id="finRepCatWrap" style="display:none;">
+                            <label class="form-label" for="finRepCat" style="font-size:12px;">Category contains</label>
+                            <input type="text" id="finRepCat" class="form-input" style="max-width:220px;" placeholder="e.g. Paving"></div>
+                        <button class="btn btn-secondary btn-sm" onclick="loadFinanceReportView()">
+                            <i class="fas fa-arrows-rotate"></i> Run</button>
+                    </div>
+                    <div id="finRepPicker" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+                    <div class="loading" id="finRepLoading" style="display:none;">
+                        <i class="fas fa-spinner fa-spin"></i><p>Building report&hellip;</p></div>
+                    <div class="error-msg" id="finRepError" role="alert" style="display:none;"></div>
+                    <iframe id="finRepFrame" title="Finance report"
+                        style="width:100%;height:70vh;border:1px solid #d6dbe3;border-radius:8px;display:none;background:#fff;"></iframe>
+                </div>
+
                 <div class="subpanel" id="finSubOfficer">
                     <div style="background:#fff7e6;border:1px solid #f0d18a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#7a5b00;">
                         <strong>Snapshot report.</strong> This is the reconciled Finance Officer report as of <strong>July 21, 2026</strong>.
@@ -2563,6 +2584,7 @@
                 transactions: 'finSubTransactions',
                 import: 'finSubImport',
                 reconcile: 'finSubReconcile',
+                reports: 'finSubReports',
                 officer: 'finSubOfficer',
                 downloads: 'finSubDownloads',
             };
@@ -2578,6 +2600,8 @@
                 actions.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="loadFinanceTransactions()"><i class="fas fa-arrows-rotate"></i> Reload</button>`;
             } else if (name === 'officer') {
                 actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="printFinanceReport()"><i class="fas fa-print"></i> Print / PDF</button>`;
+            } else if (name === 'reports') {
+                actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="printFinanceReportView()"><i class="fas fa-print"></i> Print / PDF</button>`;
             }
 
             // Lazy-load on first visit.
@@ -2586,6 +2610,92 @@
             if (name === 'import') initFinanceImport();
             if (name === 'reconcile') initFinanceReconcile();
             if (name === 'officer') loadFinanceReport();
+            if (name === 'reports') initFinanceReports();
+        }
+
+        // ── Reports (slice 4) ───────────────────────────────────────────
+        // Each report is rendered by the Worker from this organization's own
+        // ledger and shown in an iframe, the same way the Officer Report is,
+        // so Print works without any extra plumbing.
+        const FIN_REPORTS = [
+            ['pnl', 'Profit &amp; Loss'],
+            ['balance-sheet', 'Balance Sheet'],
+            ['monthly-control', 'Monthly Control'],
+            ['check-register', 'Check Register'],
+            ['category-detail', 'Category Detail'],
+        ];
+        let finRepInit = false, finRepName = 'pnl';
+
+        function initFinanceReports() {
+            if (finRepInit) return;
+            finRepInit = true;
+            const today = new Date();
+            document.getElementById('finRepFrom').value = today.getFullYear() + '-01-01';
+            document.getElementById('finRepTo').value = today.toISOString().slice(0, 10);
+            const picker = document.getElementById('finRepPicker');
+            picker.innerHTML = FIN_REPORTS.map(([k, label], i) =>
+                `<button class="subtab${i === 0 ? ' active' : ''}" data-rep="${k}">${label}</button>`).join('');
+            picker.querySelectorAll('[data-rep]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    finRepName = btn.dataset.rep;
+                    picker.querySelectorAll('[data-rep]').forEach(b => b.classList.toggle('active', b === btn));
+                    document.getElementById('finRepCatWrap').style.display =
+                        finRepName === 'category-detail' ? '' : 'none';
+                    loadFinanceReportView();
+                });
+            });
+            loadFinanceReportView();
+        }
+
+        async function loadFinanceReportView() {
+            const loading = document.getElementById('finRepLoading');
+            const errEl = document.getElementById('finRepError');
+            const frame = document.getElementById('finRepFrame');
+            loading.style.display = 'block';
+            errEl.style.display = 'none';
+            frame.style.display = 'none';
+            const params = new URLSearchParams({
+                from: document.getElementById('finRepFrom').value,
+                to: document.getElementById('finRepTo').value,
+            });
+            if (finRepName === 'category-detail') {
+                params.set('category', document.getElementById('finRepCat').value || '');
+            }
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/reports/${finRepName}?${params}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout('Session expired. Please sign in again.'); return; }
+                if (res.status === 403) {
+                    loading.style.display = 'none';
+                    errEl.textContent = 'You do not have access to the finance reports.';
+                    errEl.style.display = 'block';
+                    return;
+                }
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+                const html = await res.text();
+                frame.onload = () => {
+                    try {
+                        const h = frame.contentWindow.document.body.scrollHeight;
+                        if (h) frame.style.height = (h + 40) + 'px';
+                    } catch (e) { /* leave default height */ }
+                };
+                frame.srcdoc = html;
+                frame.style.display = 'block';
+                loading.style.display = 'none';
+            } catch (err) {
+                loading.style.display = 'none';
+                errEl.textContent = 'Could not build the report. ' + err.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        function printFinanceReportView() {
+            const frame = document.getElementById('finRepFrame');
+            if (frame && frame.style.display !== 'none' && frame.contentWindow) {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            }
         }
 
         // Dashboard -------------------------------------------------------
