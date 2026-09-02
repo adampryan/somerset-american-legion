@@ -1162,6 +1162,7 @@
                     <button class="subtab" data-sub="import"><i class="fas fa-file-import"></i> Import CSV</button>
                     <button class="subtab" data-sub="reconcile"><i class="fas fa-square-check"></i> Reconcile</button>
                     <button class="subtab" data-sub="identify"><i class="fas fa-magnifying-glass-dollar"></i> Identify</button>
+                    <button class="subtab" data-sub="till"><i class="fas fa-cash-register"></i> Till &amp; Bank</button>
                     <button class="subtab" data-sub="reports"><i class="fas fa-chart-column"></i> Reports</button>
                     <button class="subtab" data-sub="rules"><i class="fas fa-sliders"></i> Categories &amp; Rules</button>
                     <button class="subtab" data-sub="officer"><i class="fas fa-file-invoice-dollar"></i> Officer Report</button>
@@ -1372,6 +1373,38 @@
                     <div id="finRuleTest" style="font-size:13px;margin-bottom:10px;"></div>
                     <div class="error-msg" id="finRulesError" role="alert" style="display:none;"></div>
                     <div id="finRuleList"></div>
+                </div>
+
+                <div class="subpanel" id="finSubTill">
+                    <h3 style="margin:0 0 6px;color:var(--navy);font-size:16px;">Card &mdash; Stripe payouts</h3>
+                    <p style="color:var(--gray-600);font-size:13px;margin:0 0 10px;">
+                        A payout lands as one credit, net of fees, covering many sales. Matching it
+                        raises the deposit to what the bar actually took and books the fees as an
+                        expense &mdash; cash is unchanged, and the fees stop being invisible.</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                        <button class="btn btn-primary btn-sm" onclick="syncPayouts()">
+                            <i class="fas fa-rotate"></i> Pull from Stripe</button>
+                        <button class="btn btn-secondary btn-sm" onclick="loadTill()">
+                            <i class="fas fa-arrows-rotate"></i> Reload</button>
+                        <span id="finTillMsg" style="font-size:13px;color:var(--gray-600);align-self:center;"></span>
+                    </div>
+                    <div id="finPayoutList" style="margin-bottom:24px;"></div>
+
+                    <h3 style="margin:0 0 6px;color:var(--navy);font-size:16px;">Cash &mdash; till against deposits</h3>
+                    <p style="color:var(--gray-600);font-size:13px;margin:0 0 10px;">
+                        No matching here, deliberately. A deposit is a lump &mdash; it can cover several
+                        nights, mix bar cash with hall money, and be short by whatever stayed in the
+                        till. The gap is for somebody who was there to read.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+                        <div><label class="form-label" style="font-size:12px;">From</label>
+                            <input type="date" id="finTillFrom" class="form-input" style="max-width:170px;"></div>
+                        <div><label class="form-label" style="font-size:12px;">To</label>
+                            <input type="date" id="finTillTo" class="form-input" style="max-width:170px;"></div>
+                        <button class="btn btn-secondary btn-sm" onclick="loadCashRecon()">
+                            <i class="fas fa-scale-balanced"></i> Compare</button>
+                    </div>
+                    <div class="error-msg" id="finTillError" role="alert" style="display:none;"></div>
+                    <div id="finCashRecon"></div>
                 </div>
 
                 <div class="subpanel" id="finSubReports">
@@ -2650,6 +2683,7 @@
                 reconcile: 'finSubReconcile',
                 identify: 'finSubIdentify',
                 reports: 'finSubReports',
+                till: 'finSubTill',
                 rules: 'finSubRules',
                 officer: 'finSubOfficer',
                 downloads: 'finSubDownloads',
@@ -2678,6 +2712,7 @@
             if (name === 'officer') loadFinanceReport();
             if (name === 'reports') initFinanceReports();
             if (name === 'identify') loadIdentify();
+            if (name === 'till') loadTill();
             if (name === 'rules') loadFinRules();
         }
 
@@ -2809,6 +2844,97 @@
                         .map(u => `${u.filename} (${u.why})`).join('; ') : '');
                 loadIdentify();
             } catch (e) { out.textContent = e.message; }
+        }
+
+        // ── Till & bank ─────────────────────────────────────────────────
+        async function loadTill() {
+            const err = document.getElementById('finTillError'); err.style.display = 'none';
+            const t = document.getElementById('finTillTo');
+            if (!t.value) {
+                const today = new Date();
+                t.value = today.toISOString().slice(0, 10);
+                document.getElementById('finTillFrom').value = today.getFullYear() + '-01-01';
+            }
+            try {
+                const ps = await finApi('/api/admin/finance/stripe/payouts');
+                document.getElementById('finPayoutList').innerHTML = ps.length ? `
+                  <table class="data-table"><tr><th>Arrived</th><th>Gross</th><th>Fees</th>
+                    <th>Net to bank</th><th>Sales</th><th>Bank line</th><th></th></tr>` +
+                  ps.map(p => `<tr>
+                    <td>${p.arrival_date}</td>
+                    <td>${finMoney(p.gross/100)}</td>
+                    <td style="color:var(--red)">${finMoney(-p.fees/100)}</td>
+                    <td><b>${finMoney(p.amount/100)}</b></td>
+                    <td>${p.items_linked}/${p.items} matched to till sales</td>
+                    <td>${p.finance_transaction_id
+                          ? 'matched &amp; grossed up'
+                          : (p.candidates.length
+                             ? p.candidates.map(c => `${c.date} ${finMoney(c.amount)}`).join(', ')
+                             : '<span style="color:var(--gray-600)">no bank line of that amount</span>')}</td>
+                    <td style="text-align:right">${p.finance_transaction_id
+                          ? `<button class="btn btn-secondary btn-sm" onclick="unmatchPayout('${p.id}')">Undo</button>`
+                          : (p.candidates.length
+                             ? `<button class="btn btn-primary btn-sm"
+                                  onclick="matchPayout('${p.id}',${p.candidates[0].id})">Match</button>` : '')}</td>
+                  </tr>`).join('') + `</table>`
+                : '<p style="color:var(--gray-600);">No payouts pulled yet. Stripe pays out on its own schedule; use <b>Pull from Stripe</b> once the bar has taken cards.</p>';
+                loadCashRecon();
+            } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
+        }
+
+        async function syncPayouts() {
+            const msg = document.getElementById('finTillMsg');
+            msg.textContent = 'Asking Stripe…';
+            try {
+                const r = await finApi('/api/admin/finance/stripe/sync',
+                    { method: 'POST', body: JSON.stringify({}) });
+                msg.textContent = `${r.payouts} payout(s), ${r.items} charge(s), ${r.linked_to_pos} matched to till sales.`;
+                loadTill();
+            } catch (e) { msg.textContent = e.message; }
+        }
+
+        async function matchPayout(id, txId) {
+            const msg = document.getElementById('finTillMsg'); msg.textContent = 'Matching…';
+            try {
+                const r = await finApi(`/api/admin/finance/stripe/payouts/${id}/match`,
+                    { method: 'POST', body: JSON.stringify({ transaction_id: txId }) });
+                msg.textContent = `Deposit raised to ${finMoney(r.gross)} and ${finMoney(r.fees)} of fees booked.`;
+                loadTill();
+            } catch (e) { msg.textContent = e.message; }
+        }
+
+        async function unmatchPayout(id) {
+            const msg = document.getElementById('finTillMsg'); msg.textContent = 'Undoing…';
+            try {
+                await finApi(`/api/admin/finance/stripe/payouts/${id}/unmatch`,
+                    { method: 'POST', body: JSON.stringify({}) });
+                msg.textContent = 'Put back the way the bank had it.';
+                loadTill();
+            } catch (e) { msg.textContent = e.message; }
+        }
+
+        async function loadCashRecon() {
+            const err = document.getElementById('finTillError');
+            try {
+                const from = document.getElementById('finTillFrom').value;
+                const to = document.getElementById('finTillTo').value;
+                const r = await finApi(`/api/admin/finance/cash-reconciliation?from=${from}&to=${to}`);
+                const sign = r.variance >= 0 ? 'more banked than the till recorded'
+                                             : 'less banked than the till recorded';
+                document.getElementById('finCashRecon').innerHTML = `
+                  <table class="data-table" style="max-width:520px;">
+                    <tr><td>Cash taken through the till (${r.till_days} day${r.till_days === 1 ? '' : 's'})</td>
+                        <td style="text-align:right">${finMoney(r.cash_taken)}</td></tr>
+                    <tr><td>Cash banked (${r.deposits} deposit${r.deposits === 1 ? '' : 's'}, excluding card payouts)</td>
+                        <td style="text-align:right">${finMoney(r.cash_banked)}</td></tr>
+                    <tr><td><b>Difference</b></td>
+                        <td style="text-align:right"><b>${finMoney(r.variance)}</b></td></tr>
+                  </table>
+                  <p style="color:var(--gray-600);font-size:13px;margin-top:8px;">
+                    ${finMoney(Math.abs(r.variance))} ${sign}. That is not necessarily an error:
+                    deposits include hall rental and dues, and takings can sit in the till for days.
+                    It is a number to explain, not a number to fix.</p>`;
+            } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
         }
 
         // ── Categories & rules (slice 4) ────────────────────────────────
