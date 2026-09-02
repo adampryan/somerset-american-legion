@@ -1405,6 +1405,13 @@
                     </div>
                     <div class="error-msg" id="finTillError" role="alert" style="display:none;"></div>
                     <div id="finCashRecon"></div>
+
+                    <h3 style="margin:24px 0 6px;color:var(--navy);font-size:16px;">Hall rentals</h3>
+                    <p style="color:var(--gray-600);font-size:13px;margin:0 0 10px;">
+                        A rental can only reconcile if somebody recorded what was collected. Marking
+                        one paid without an amount leaves the hall's income invisible &mdash; the booking
+                        says paid, the books show an anonymous deposit, and nothing ties them together.</p>
+                    <div id="finRentalRecon"></div>
                 </div>
 
                 <div class="subpanel" id="finSubReports">
@@ -2934,7 +2941,34 @@
                     ${finMoney(Math.abs(r.variance))} ${sign}. That is not necessarily an error:
                     deposits include hall rental and dues, and takings can sit in the till for days.
                     It is a number to explain, not a number to fix.</p>`;
+                loadRentalRecon(from, to);
             } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
+        }
+
+        async function loadRentalRecon(from, to) {
+            try {
+                const r = await finApi(`/api/admin/finance/rental-reconciliation?from=${from}&to=${to}`);
+                const gap = r.without_an_amount;
+                document.getElementById('finRentalRecon').innerHTML = `
+                  <table class="data-table" style="max-width:520px;">
+                    <tr><td>Rentals marked paid</td><td style="text-align:right">${r.marked_paid}</td></tr>
+                    <tr><td>&hellip;with an amount recorded</td><td style="text-align:right">${r.with_an_amount}</td></tr>
+                    <tr><td>Collected</td><td style="text-align:right">${finMoney(r.collected)}</td></tr>
+                    <tr><td>Reached the books as Hall Rental</td>
+                        <td style="text-align:right">${finMoney(r.banked_as_hall_rental)}</td></tr>
+                    <tr><td><b>Difference</b></td>
+                        <td style="text-align:right"><b>${finMoney(r.variance)}</b></td></tr>
+                  </table>` +
+                  (gap ? `<p style="color:var(--red);font-size:13px;margin-top:8px;">
+                      <b>${gap} rental${gap === 1 ? ' was' : 's were'} marked paid with no amount recorded.</b>
+                      Until somebody fills those in there is nothing to reconcile against, and the
+                      difference above means very little.</p>
+                      <table class="data-table" style="max-width:640px;margin-top:6px;">
+                      <tr><th>Date</th><th>Event</th><th>Contact</th></tr>` +
+                      r.unrecorded.map(u => `<tr><td>${u.event_date}</td><td>${u.event_type}</td>
+                        <td>${u.contact_name}</td></tr>`).join('') + `</table>`
+                    : '');
+            } catch (e) { /* the cash block already reported the error */ }
         }
 
         // ── Categories & rules (slice 4) ────────────────────────────────
