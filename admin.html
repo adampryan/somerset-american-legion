@@ -1161,7 +1161,9 @@
                     <button class="subtab" data-sub="transactions"><i class="fas fa-list"></i> Transactions</button>
                     <button class="subtab" data-sub="import"><i class="fas fa-file-import"></i> Import CSV</button>
                     <button class="subtab" data-sub="reconcile"><i class="fas fa-square-check"></i> Reconcile</button>
+                    <button class="subtab" data-sub="identify"><i class="fas fa-magnifying-glass-dollar"></i> Identify</button>
                     <button class="subtab" data-sub="reports"><i class="fas fa-chart-column"></i> Reports</button>
+                    <button class="subtab" data-sub="rules"><i class="fas fa-sliders"></i> Categories &amp; Rules</button>
                     <button class="subtab" data-sub="officer"><i class="fas fa-file-invoice-dollar"></i> Officer Report</button>
                     <button class="subtab" data-sub="downloads"><i class="fas fa-download"></i> Downloads</button>
                 </div>
@@ -1310,6 +1312,68 @@
                 </div>
 
                 <!-- Officer Report (existing) -->
+                <div class="subpanel" id="finSubIdentify">
+                    <p style="color:var(--gray-600);font-size:13px;margin:0 0 12px;">
+                        Everything the books cannot attribute — no category, or no payee. The cheque
+                        image sits beside each row so you can read it and type what it says.
+                        <b>Remember</b> turns that into a rule so the next one files itself.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+                        <input type="file" id="finIdFiles" accept="image/*" multiple style="display:none;"
+                            onchange="bulkUploadCheckImages(event)">
+                        <button class="btn btn-secondary btn-sm"
+                            onclick="document.getElementById('finIdFiles').click()">
+                            <i class="fas fa-images"></i> Attach images (named check_1507.png)</button>
+                        <button class="btn btn-secondary btn-sm" onclick="loadIdentify()">
+                            <i class="fas fa-arrows-rotate"></i> Reload</button>
+                        <span id="finIdSummary" style="font-size:13px;color:var(--gray-600);"></span>
+                    </div>
+                    <div id="finIdUploadResult" style="font-size:13px;margin-bottom:10px;"></div>
+                    <div class="error-msg" id="finIdError" role="alert" style="display:none;"></div>
+                    <div id="finIdList"></div>
+                </div>
+
+                <div class="subpanel" id="finSubRules">
+                    <h3 style="margin:0 0 8px;color:var(--navy);font-size:16px;">Categories</h3>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+                        <div><label class="form-label" style="font-size:12px;">Name</label>
+                            <input type="text" id="finCatName" class="form-input" style="max-width:220px;"></div>
+                        <div><label class="form-label" style="font-size:12px;">Kind</label>
+                            <select id="finCatKind" class="form-input" style="max-width:150px;">
+                                <option value="expense">expense</option>
+                                <option value="income">income</option>
+                                <option value="transfer">transfer</option>
+                                <option value="liability">liability (borrowed)</option>
+                            </select></div>
+                        <button class="btn btn-primary btn-sm" onclick="addFinCategory()">
+                            <i class="fas fa-plus"></i> Add</button>
+                    </div>
+                    <div id="finCatList" style="margin-bottom:22px;"></div>
+
+                    <h3 style="margin:0 0 8px;color:var(--navy);font-size:16px;">Auto-categorisation rules</h3>
+                    <p style="color:var(--gray-600);font-size:13px;margin:0 0 10px;">
+                        Test before you save. A rule that quietly matches half the ledger is worse
+                        than no rule.</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+                        <div><label class="form-label" style="font-size:12px;">Match on</label>
+                            <select id="finRuleType" class="form-input" style="max-width:150px;">
+                                <option value="payee_like">payee contains</option>
+                                <option value="memo_like">memo contains</option>
+                                <option value="check_exact">cheque number is</option>
+                            </select></div>
+                        <div><label class="form-label" style="font-size:12px;">Pattern</label>
+                            <input type="text" id="finRulePattern" class="form-input" style="max-width:200px;"></div>
+                        <div><label class="form-label" style="font-size:12px;">Category</label>
+                            <select id="finRuleCat" class="form-input" style="max-width:220px;"></select></div>
+                        <button class="btn btn-secondary btn-sm" onclick="testFinRule()">
+                            <i class="fas fa-flask"></i> Test</button>
+                        <button class="btn btn-primary btn-sm" onclick="addFinRule()">
+                            <i class="fas fa-plus"></i> Add rule</button>
+                    </div>
+                    <div id="finRuleTest" style="font-size:13px;margin-bottom:10px;"></div>
+                    <div class="error-msg" id="finRulesError" role="alert" style="display:none;"></div>
+                    <div id="finRuleList"></div>
+                </div>
+
                 <div class="subpanel" id="finSubReports">
                     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
                         <div><label class="form-label" for="finRepFrom" style="font-size:12px;">From</label>
@@ -2584,7 +2648,9 @@
                 transactions: 'finSubTransactions',
                 import: 'finSubImport',
                 reconcile: 'finSubReconcile',
+                identify: 'finSubIdentify',
                 reports: 'finSubReports',
+                rules: 'finSubRules',
                 officer: 'finSubOfficer',
                 downloads: 'finSubDownloads',
             };
@@ -2611,6 +2677,210 @@
             if (name === 'reconcile') initFinanceReconcile();
             if (name === 'officer') loadFinanceReport();
             if (name === 'reports') initFinanceReports();
+            if (name === 'identify') loadIdentify();
+            if (name === 'rules') loadFinRules();
+        }
+
+        // ── Identify (slice 6) ──────────────────────────────────────────
+        const finMoney = (v) => (v < 0 ? '-' : '') + '$' +
+            Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        let finIdCats = [];
+
+        async function finApi(path, opts) {
+            const res = await fetch(`${API_URL}${path}`, {
+                ...opts, headers: { 'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`, ...(opts && opts.headers) } });
+            if (res.status === 401) { logout('Session expired. Please sign in again.'); throw new Error('401'); }
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Request failed (${res.status})`);
+            return res.json();
+        }
+
+        async function loadIdentify() {
+            const err = document.getElementById('finIdError');
+            err.style.display = 'none';
+            try {
+                finIdCats = await finApi('/api/admin/finance/categories');
+                const d = await finApi('/api/admin/finance/unidentified');
+                document.getElementById('finIdSummary').textContent =
+                    `${d.count} unattributed \u00b7 ${finMoney(d.value)} \u00b7 ${d.with_image} with an image`;
+                const opts = finIdCats.map(c =>
+                    `<option value="${c.id}">${c.name} (${c.kind})</option>`).join('');
+                document.getElementById('finIdList').innerHTML = d.rows.length ? d.rows.map(r => `
+                    <div class="card" style="display:flex;gap:14px;padding:12px;margin-bottom:10px;align-items:flex-start;">
+                      <div style="flex:0 0 240px;">
+                        ${r.attachment_id
+                          ? `<img src="" data-att="${r.attachment_id}" alt="Cheque ${r.check_number || ''}"
+                                 style="width:240px;border:1px solid #d6dbe3;border-radius:6px;cursor:zoom-in"
+                                 onclick="window.open(this.src,'_blank')">`
+                          : `<div style="width:240px;height:96px;border:1px dashed #c9cfda;border-radius:6px;
+                                 display:flex;align-items:center;justify-content:center;color:#8b93a3;font-size:12px;">
+                               no image</div>`}
+                      </div>
+                      <div style="flex:1;min-width:260px;">
+                        <div style="font-size:13px;color:var(--gray-600);margin-bottom:6px;">
+                          ${r.date} &middot; ${r.check_number ? 'cheque ' + r.check_number + ' &middot; ' : ''}
+                          <b style="color:var(--navy)">${finMoney(r.amount)}</b>
+                          ${r.memo ? ' &middot; ' + r.memo : ''}
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+                          <div><label class="form-label" style="font-size:11px;">Payee</label>
+                            <input type="text" class="form-input" style="max-width:200px;"
+                                   id="idp_${r.id}" value="${(r.payee || '').replace(/"/g, '&quot;')}"></div>
+                          <div><label class="form-label" style="font-size:11px;">Category</label>
+                            <select class="form-input" style="max-width:220px;" id="idc_${r.id}">
+                              <option value="">— choose —</option>${opts}</select></div>
+                          <button class="btn btn-primary btn-sm" onclick="saveIdentify(${r.id})">Save</button>
+                          <button class="btn btn-secondary btn-sm" onclick="saveIdentify(${r.id}, true)"
+                                  title="Save, and file anything with this payee the same way next time">
+                            Save &amp; remember</button>
+                        </div>
+                        <div id="idm_${r.id}" style="font-size:12px;color:var(--gray-600);margin-top:6px;"></div>
+                      </div>
+                    </div>`).join('')
+                  : '<p style="color:var(--gray-600);">Nothing outstanding — every transaction has a payee and a category.</p>';
+                d.rows.forEach(r => { if (r.category_id) {
+                    const el = document.getElementById('idc_' + r.id); if (el) el.value = r.category_id; } });
+                document.querySelectorAll('#finIdList img[data-att]').forEach(loadAttachmentImg);
+            } catch (e) {
+                err.textContent = e.message; err.style.display = 'block';
+            }
+        }
+
+        // Attachments need the bearer token, so they cannot be a plain <img src>.
+        async function loadAttachmentImg(img) {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/finance/attachments/${img.dataset.att}`,
+                    { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) return;
+                img.src = URL.createObjectURL(await res.blob());
+            } catch (e) { /* leave the placeholder */ }
+        }
+
+        async function saveIdentify(id, remember) {
+            const msg = document.getElementById('idm_' + id);
+            const payee = document.getElementById('idp_' + id).value.trim();
+            const cat = document.getElementById('idc_' + id).value;
+            if (!cat) { msg.textContent = 'Choose a category first.'; return; }
+            msg.textContent = 'Saving…';
+            try {
+                await finApi(`/api/admin/finance/transactions/${id}`, {
+                    method: 'PUT', body: JSON.stringify({ payee: payee || null, category_id: Number(cat) }) });
+                if (remember) {
+                    const r = await finApi(`/api/admin/finance/transactions/${id}/remember`, {
+                        method: 'POST',
+                        body: JSON.stringify({ match_type: payee ? 'payee_like' : 'check_exact' }) });
+                    msg.textContent = r.already ? 'Saved. A rule for that already existed.'
+                        : `Saved, and remembered: ${r.match_type} "${r.pattern}".`;
+                } else {
+                    msg.textContent = 'Saved.';
+                }
+            } catch (e) { msg.textContent = e.message; }
+        }
+
+        async function bulkUploadCheckImages(ev) {
+            const files = [...ev.target.files];
+            ev.target.value = '';
+            if (!files.length) return;
+            const out = document.getElementById('finIdUploadResult');
+            out.textContent = `Reading ${files.length} file(s)…`;
+            const payload = [];
+            for (const f of files) {
+                const buf = await f.arrayBuffer();
+                let bin = ''; const bytes = new Uint8Array(buf);
+                for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+                payload.push({ filename: f.name, mime_type: f.type || 'image/png', bytes_b64: btoa(bin) });
+            }
+            try {
+                const r = await finApi('/api/admin/finance/attachments/bulk', {
+                    method: 'POST', body: JSON.stringify({ files: payload }) });
+                out.innerHTML = `<b>${r.matched} attached</b>` +
+                    (r.unmatched ? `, ${r.unmatched} not: ` + r.details.unmatched
+                        .map(u => `${u.filename} (${u.why})`).join('; ') : '');
+                loadIdentify();
+            } catch (e) { out.textContent = e.message; }
+        }
+
+        // ── Categories & rules (slice 4) ────────────────────────────────
+        async function loadFinRules() {
+            const err = document.getElementById('finRulesError');
+            err.style.display = 'none';
+            try {
+                const cats = await finApi('/api/admin/finance/categories');
+                const rules = await finApi('/api/admin/finance/rules');
+                document.getElementById('finRuleCat').innerHTML =
+                    cats.map(c => `<option value="${c.id}">${c.name} (${c.kind})</option>`).join('');
+                document.getElementById('finCatList').innerHTML =
+                    `<table class="data-table"><tr><th>Category</th><th>Kind</th><th></th></tr>` +
+                    cats.map(c => `<tr><td>${c.name}</td><td>${c.kind}</td>
+                        <td style="text-align:right"><button class="btn btn-secondary btn-sm"
+                            onclick="deleteFinCategory(${c.id})">Delete</button></td></tr>`).join('') +
+                    `</table>`;
+                document.getElementById('finRuleList').innerHTML = rules.length
+                    ? `<table class="data-table"><tr><th>When</th><th>Pattern</th><th>File as</th><th>Payee</th><th></th></tr>` +
+                      rules.map(r => `<tr><td>${r.match_type.replace('_', ' ')}</td>
+                        <td><code>${r.pattern}</code></td><td>${r.category || '—'}</td>
+                        <td>${r.payee || '—'}</td>
+                        <td style="text-align:right"><button class="btn btn-secondary btn-sm"
+                            onclick="deleteFinRule(${r.id})">Delete</button></td></tr>`).join('') +
+                      `</table>`
+                    : '<p style="color:var(--gray-600);">No rules yet.</p>';
+            } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
+        }
+
+        async function addFinCategory() {
+            const err = document.getElementById('finRulesError'); err.style.display = 'none';
+            try {
+                await finApi('/api/admin/finance/categories', { method: 'POST', body: JSON.stringify({
+                    name: document.getElementById('finCatName').value.trim(),
+                    kind: document.getElementById('finCatKind').value }) });
+                document.getElementById('finCatName').value = '';
+                loadFinRules();
+            } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
+        }
+
+        async function deleteFinCategory(id) {
+            const err = document.getElementById('finRulesError'); err.style.display = 'none';
+            try {
+                await finApi(`/api/admin/finance/categories/${id}`, { method: 'DELETE' });
+                loadFinRules();
+            } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
+        }
+
+        async function testFinRule() {
+            const out = document.getElementById('finRuleTest');
+            out.textContent = 'Testing…';
+            try {
+                const r = await finApi('/api/admin/finance/rules/test', { method: 'POST',
+                    body: JSON.stringify({
+                        match_type: document.getElementById('finRuleType').value,
+                        pattern: document.getElementById('finRulePattern').value.trim() }) });
+                out.innerHTML = `<b>${r.matched}</b> transaction(s) match — ` +
+                    `${r.already_categorised} already filed, <b>${r.would_newly_categorise}</b> would be newly categorised.` +
+                    (r.sample.length ? `<br><span style="color:var(--gray-600)">` +
+                        r.sample.slice(0, 5).map(x => `${x.date} ${finMoney(x.amount)} ${x.payee || x.memo || ''}`)
+                            .join(' &middot; ') + `</span>` : '');
+            } catch (e) { out.textContent = e.message; }
+        }
+
+        async function addFinRule() {
+            const err = document.getElementById('finRulesError'); err.style.display = 'none';
+            try {
+                await finApi('/api/admin/finance/rules', { method: 'POST', body: JSON.stringify({
+                    match_type: document.getElementById('finRuleType').value,
+                    pattern: document.getElementById('finRulePattern').value.trim(),
+                    category_id: Number(document.getElementById('finRuleCat').value) }) });
+                document.getElementById('finRulePattern').value = '';
+                document.getElementById('finRuleTest').textContent = '';
+                loadFinRules();
+            } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
+        }
+
+        async function deleteFinRule(id) {
+            const err = document.getElementById('finRulesError'); err.style.display = 'none';
+            try {
+                await finApi(`/api/admin/finance/rules/${id}`, { method: 'DELETE' });
+                loadFinRules();
+            } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
         }
 
         // ── Reports (slice 4) ───────────────────────────────────────────
