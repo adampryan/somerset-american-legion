@@ -1323,7 +1323,11 @@
                             onchange="bulkUploadCheckImages(event)">
                         <button class="btn btn-secondary btn-sm"
                             onclick="document.getElementById('finIdFiles').click()">
-                            <i class="fas fa-images"></i> Attach images (named check_1507.png)</button>
+                            <i class="fas fa-images"></i> Attach images</button>
+                        <span style="font-size:12px;color:var(--gray-600);align-self:center;">
+                            <code>check_1507.png</code> for a cheque written &middot;
+                            <code>deposit_2026-08-10.png</code> for a slip &middot;
+                            <code>rental_2026-08-10_150.00.png</code> for a cheque received</span>
                         <button class="btn btn-secondary btn-sm" onclick="loadIdentify()">
                             <i class="fas fa-arrows-rotate"></i> Reload</button>
                         <span id="finIdSummary" style="font-size:13px;color:var(--gray-600);"></span>
@@ -2786,6 +2790,10 @@
                           <button class="btn btn-secondary btn-sm" onclick="saveIdentify(${r.id}, true)"
                                   title="Save, and file anything with this payee the same way next time">
                             Save &amp; remember</button>
+                          ${r.amount > 0 ? `<button class="btn btn-secondary btn-sm"
+                              onclick="splitDeposit(${r.id}, ${r.amount})"
+                              title="One credit made of several things — a rental cheque, dues, bar cash">
+                            Split this deposit</button>` : ''}
                         </div>
                         <div id="idm_${r.id}" style="font-size:12px;color:var(--gray-600);margin-top:6px;"></div>
                       </div>
@@ -2827,6 +2835,82 @@
                 } else {
                     msg.textContent = 'Saved.';
                 }
+            } catch (e) { msg.textContent = e.message; }
+        }
+
+        // A deposit is one credit that can be several things. The slip says what.
+        async function splitDeposit(id, total) {
+            const box = document.getElementById('idm_' + id);
+            const cats = finIdCats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            const row = (i) => `<div style="display:flex;gap:6px;margin-bottom:5px;" data-part>
+                <input type="number" step="0.01" class="form-input" style="max-width:110px"
+                       placeholder="amount" id="sp_${id}_${i}_amt">
+                <select class="form-input" style="max-width:190px" id="sp_${id}_${i}_cat">
+                  <option value="">— category —</option>${cats}</select>
+                <input type="text" class="form-input" style="max-width:150px"
+                       placeholder="who / what" id="sp_${id}_${i}_who">
+                <select class="form-input" style="max-width:200px" id="sp_${id}_${i}_rent">
+                  <option value="">— not a rental —</option></select>
+              </div>`;
+            box.innerHTML = `<div style="border-left:3px solid var(--navy);padding:8px 0 4px 10px;margin-top:6px;">
+                <div style="font-size:12px;color:var(--gray-600);margin-bottom:6px;">
+                  The parts must come to <b>${finMoney(total)}</b> — what the bank actually moved.</div>
+                <div id="sp_${id}_rows">${row(0)}${row(1)}</div>
+                <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+                  <button class="btn btn-secondary btn-sm" onclick="addSplitRow(${id})">Another part</button>
+                  <button class="btn btn-primary btn-sm" onclick="commitSplit(${id}, ${total})">Split</button>
+                  <span id="sp_${id}_msg" style="font-size:12px;color:var(--gray-600);"></span>
+                </div></div>`;
+            // Offer the bookings near this date so a rental cheque can be tied to one.
+            try {
+                const rentals = await finApi('/api/admin/rentals');
+                const opts = (rentals.rentals || rentals || []).slice(0, 200)
+                    .map(x => `<option value="${x.id}">${x.event_date} ${x.contact_name}</option>`).join('');
+                box.querySelectorAll('select[id$="_rent"]').forEach(sel => {
+                    sel.insertAdjacentHTML('beforeend', opts); });
+            } catch (e) { /* rentals are optional here */ }
+        }
+
+        function addSplitRow(id) {
+            const rows = document.getElementById('sp_' + id + '_rows');
+            const i = rows.querySelectorAll('[data-part]').length;
+            const cats = finIdCats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            const rentOpts = rows.querySelector('select[id$="_rent"]').innerHTML;
+            rows.insertAdjacentHTML('beforeend', `<div style="display:flex;gap:6px;margin-bottom:5px;" data-part>
+                <input type="number" step="0.01" class="form-input" style="max-width:110px"
+                       placeholder="amount" id="sp_${id}_${i}_amt">
+                <select class="form-input" style="max-width:190px" id="sp_${id}_${i}_cat">
+                  <option value="">— category —</option>${cats}</select>
+                <input type="text" class="form-input" style="max-width:150px"
+                       placeholder="who / what" id="sp_${id}_${i}_who">
+                <select class="form-input" style="max-width:200px" id="sp_${id}_${i}_rent">${rentOpts}</select>
+              </div>`);
+        }
+
+        async function commitSplit(id, total) {
+            const msg = document.getElementById('sp_' + id + '_msg');
+            const rows = document.getElementById('sp_' + id + '_rows').querySelectorAll('[data-part]');
+            const parts = [];
+            rows.forEach((_, i) => {
+                const amt = parseFloat(document.getElementById(`sp_${id}_${i}_amt`).value);
+                if (!isFinite(amt) || amt === 0) return;
+                parts.push({
+                    amount: amt,
+                    category_id: Number(document.getElementById(`sp_${id}_${i}_cat`).value) || null,
+                    payee: document.getElementById(`sp_${id}_${i}_who`).value.trim() || null,
+                    rental_id: Number(document.getElementById(`sp_${id}_${i}_rent`).value) || null,
+                });
+            });
+            const sum = parts.reduce((s, p) => s + p.amount, 0);
+            if (Math.round(sum * 100) !== Math.round(total * 100)) {
+                msg.textContent = `The parts come to ${finMoney(sum)}; the bank moved ${finMoney(total)}.`;
+                return;
+            }
+            msg.textContent = 'Splitting…';
+            try {
+                await finApi(`/api/admin/finance/transactions/${id}/split`,
+                    { method: 'POST', body: JSON.stringify({ parts }) });
+                loadIdentify();
             } catch (e) { msg.textContent = e.message; }
         }
 
