@@ -1815,11 +1815,14 @@
                         <select id="posPCat">
                             <option value="beer">Beer</option><option value="seltzer">Seltzer</option>
                             <option value="wine">Wine</option><option value="liquor">Liquor</option>
+                            <option value="mixed">Mixed Drinks</option>
                             <option value="na">Non-Alcoholic</option><option value="food">Food</option>
                             <option value="other">Other</option>
                         </select>
                     </div>
                     <div class="form-group"><label for="posPPrice">Price ($) *</label><input type="number" id="posPPrice" step="0.25" min="0" required></div>
+                    <div class="form-group"><label for="posPRecipe">Recipe / ingredients <span style="font-weight:normal;color:var(--gray-600);">(optional — shows on the register under a ⓘ recipe chip)</span></label>
+                        <textarea id="posPRecipe" rows="4" placeholder="e.g. 1½ oz vodka, 1½ oz Irish cream, 1½ oz coffee liqueur over ice"></textarea></div>
                     <div class="form-group">
                         <label style="display:flex;align-items:center;cursor:pointer;">
                             <input type="checkbox" id="posPTrack" style="width:auto;margin-right:10px;" onchange="document.getElementById('posPStockWrap').style.display=this.checked?'block':'none';">
@@ -2511,7 +2514,7 @@
         }
         function showPosProductModal() {
             document.getElementById('posProductTitle').textContent = 'Add Menu Item';
-            ['posPId','posPName','posPPrice','posPStock'].forEach(i => document.getElementById(i).value = '');
+            ['posPId','posPName','posPPrice','posPStock','posPRecipe'].forEach(i => document.getElementById(i).value = '');
             document.getElementById('posPCat').value = 'beer';
             document.getElementById('posPActive').checked = true;
             document.getElementById('posPTrack').checked = false;
@@ -2529,6 +2532,7 @@
             document.getElementById('posPTrack').checked = !!p.track_inventory;
             document.getElementById('posPStockWrap').style.display = p.track_inventory ? 'block' : 'none';
             document.getElementById('posPStock').value = p.stock_qty ?? 0;
+            document.getElementById('posPRecipe').value = p.recipe || '';
             openModal('posProductModal');
         }
         async function savePosProduct() {
@@ -2541,6 +2545,7 @@
                 active: document.getElementById('posPActive').checked,
                 track_inventory: track,
                 stock_qty: track ? parseInt(document.getElementById('posPStock').value || '0', 10) : null,
+                recipe: document.getElementById('posPRecipe').value.trim() || null,
             };
             if (!body.name || !Number.isFinite(body.price)) { alert('Name and price required'); return; }
             try {
