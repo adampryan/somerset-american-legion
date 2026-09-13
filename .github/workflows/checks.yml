@@ -1,0 +1,55 @@
+name: Checks
+
+# GitHub Pages publishes whatever lands on main, immediately, with no build
+# step and no gate. This is that gate. It cannot stop a bad push from being
+# served — Pages does not wait for it — but it tells me within a minute, and
+# on a pull request it blocks the merge.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Two commits so I can see what this push actually changed.
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Parse every inline script
+        run: ./check.sh
+
+      # The register and the admin panel reload themselves when their build
+      # meta changes. Change either file without moving that string and every
+      # tab already open keeps serving the old page — the admin panel sat on
+      # its July build through seven deploys exactly this way.
+      - name: A changed page must bump its build meta
+        run: |
+          base='${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}'
+          # First push to a branch, or a force-push, gives no usable base.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "no previous commit to compare against — skipping"; exit 0
+          fi
+          git fetch --depth=1 origin "$base" 2>/dev/null || true
+          status=0
+          for f in admin.html pos.html; do
+            if git diff --quiet "$base" HEAD -- "$f" 2>/dev/null; then
+              continue                      # untouched this push
+            fi
+            before=$(git show "$base:$f" 2>/dev/null | grep -o 'name="build" content="[^"]*"' | head -1)
+            after=$(grep -o 'name="build" content="[^"]*"' "$f" | head -1)
+            if [ "$before" = "$after" ]; then
+              echo "::error file=$f::$f changed but its build meta is still $after — open tabs will not pick this up. Bump it."
+              status=1
+            else
+              echo "ok: $f $before → $after"
+            fi
+          done
+          exit $status
