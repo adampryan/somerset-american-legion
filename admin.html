@@ -894,6 +894,17 @@
                     </button>
                 </div>
                 <div class="panel-body">
+                    <div id="rentalSummaryCard" style="background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;">
+                            <h3 style="margin:0;color:var(--navy);font-size:15px;"><i class="fas fa-chart-line"></i> Collections summary</h3>
+                            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                                <div><label class="small" for="rentSumFrom">From</label><br><input type="date" id="rentSumFrom" class="form-input" style="max-width:150px;"></div>
+                                <div><label class="small" for="rentSumTo">To</label><br><input type="date" id="rentSumTo" class="form-input" style="max-width:150px;"></div>
+                                <button class="btn btn-secondary btn-sm" onclick="loadRentalSummary(true)"><i class="fas fa-arrows-rotate"></i> Show</button>
+                            </div>
+                        </div>
+                        <div id="rentalSummaryBody" style="margin-top:10px;font-size:13px;color:var(--gray-600);">Loading&hellip;</div>
+                    </div>
                     <div class="table-wrapper">
                         <table id="rentalsTable">
                             <thead>
@@ -1439,10 +1450,13 @@
                 </div>
 
                 <div class="subpanel" id="finSubOfficer">
-                    <div style="background:#fff7e6;border:1px solid #f0d18a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#7a5b00;">
-                        <strong>Snapshot report.</strong> This is the reconciled Finance Officer report as of <strong>July 21, 2026</strong>.
-                        For up-to-the-minute balances and transactions, use the <strong>Dashboard</strong> and <strong>Transactions</strong> tabs — those read the live ledger.
-                        (A live-rendered version of this report is a planned update.)
+                    <div style="background:#eaf5ea;border:1px solid #b7ddb7;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#2f6b2f;">
+                        <strong>Live report.</strong> Rendered from the current ledger — the profit &amp; loss and balance sheet an officer presents, across all operating accounts. Pick a period and Show.
+                    </div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+                        <div><label class="small" for="finOffFrom">From</label><br><input type="date" id="finOffFrom" class="form-input" style="max-width:170px;"></div>
+                        <div><label class="small" for="finOffTo">To</label><br><input type="date" id="finOffTo" class="form-input" style="max-width:170px;"></div>
+                        <button class="btn btn-primary btn-sm" onclick="loadFinanceReport(true)"><i class="fas fa-eye"></i> Show</button>
                     </div>
                     <div class="empty-state" id="financeLoading">
                         <i class="fas fa-spinner fa-spin"></i>
@@ -2624,16 +2638,22 @@
         // Bearer token and rendered in an isolated, same-origin iframe so its styles
         // never collide with the admin panel. Content is never stored in this repo.
         let financeLoaded = false;
-        async function loadFinanceReport() {
-            if (financeLoaded) return;
+        async function loadFinanceReport(force = false) {
             const loading = document.getElementById('financeLoading');
             const errEl = document.getElementById('financeError');
             const frame = document.getElementById('financeFrame');
+            const fromEl = document.getElementById('finOffFrom');
+            const toEl = document.getElementById('finOffTo');
+            // Default to year-to-date the first time the tab is opened.
+            if (!toEl.value) toEl.value = new Date().toISOString().slice(0, 10);
+            if (!fromEl.value) fromEl.value = toEl.value.slice(0, 4) + '-01-01';
+            if (financeLoaded && !force) return;
             loading.style.display = 'block';
             errEl.style.display = 'none';
             frame.style.display = 'none';
+            const params = new URLSearchParams({ from: fromEl.value, to: toEl.value });
             try {
-                const res = await fetch(`${API_URL}/api/admin/finance-report`, {
+                const res = await fetch(`${API_URL}/api/admin/finance/reports/officer?${params}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.status === 401) {
@@ -2953,7 +2973,14 @@
             }
             try {
                 const ps = await finApi('/api/admin/finance/stripe/payouts');
-                document.getElementById('finPayoutList').innerHTML = ps.length ? `
+                window._tillPayouts = ps;
+                // Payouts whose net is the same as exactly one unreconciled bank line can be
+                // matched in one go; anything ambiguous stays a manual, per-row decision.
+                const exact = ps.filter(p => !p.finance_transaction_id && p.candidates && p.candidates.length === 1);
+                const matchAll = exact.length > 1
+                    ? `<button class="btn btn-primary btn-sm" style="margin-bottom:10px;" onclick="matchAllExact()"><i class="fas fa-wand-magic-sparkles"></i> Match all ${exact.length} exact</button>`
+                    : '';
+                document.getElementById('finPayoutList').innerHTML = ps.length ? matchAll + `
                   <table class="data-table"><tr><th>Arrived</th><th>Gross</th><th>Fees</th>
                     <th>Net to bank</th><th>Sales</th><th>Bank line</th><th></th></tr>` +
                   ps.map(p => `<tr>
@@ -2997,6 +3024,20 @@
                 msg.textContent = `Deposit raised to ${finMoney(r.gross)} and ${finMoney(r.fees)} of fees booked.`;
                 loadTill();
             } catch (e) { msg.textContent = e.message; }
+        }
+        async function matchAllExact() {
+            const ps = (window._tillPayouts || []).filter(p => !p.finance_transaction_id && p.candidates && p.candidates.length === 1);
+            const msg = document.getElementById('finTillMsg');
+            let done = 0;
+            for (const p of ps) {
+                try {
+                    await finApi(`/api/admin/finance/stripe/payouts/${p.id}/match`,
+                        { method: 'POST', body: JSON.stringify({ transaction_id: p.candidates[0].id }) });
+                    done++; msg.textContent = `Matching… ${done}/${ps.length}`;
+                } catch (e) { /* a line that no longer matches is skipped, not fatal */ }
+            }
+            msg.textContent = `Matched ${done} payout(s) to their bank line.`;
+            loadTill();
         }
 
         async function unmatchPayout(id) {
@@ -4133,7 +4174,47 @@
         }
 
         // Load data
+        let rentalSummaryLoaded = false;
+        async function loadRentalSummary(force = false) {
+            const fromEl = document.getElementById('rentSumFrom');
+            const toEl = document.getElementById('rentSumTo');
+            if (!toEl.value) toEl.value = new Date().toISOString().slice(0, 10);
+            if (!fromEl.value) fromEl.value = toEl.value.slice(0, 4) + '-01-01';
+            if (rentalSummaryLoaded && !force) return;
+            const body = document.getElementById('rentalSummaryBody');
+            try {
+                const r = await api(`/api/admin/rentals/summary?from=${fromEl.value}&to=${toEl.value}`);
+                rentalSummaryLoaded = true;
+                const st = r.by_status || {};
+                const stat = (n, label) => `<div style="min-width:96px;"><div style="font-size:20px;font-weight:800;color:var(--navy);">${n}</div><div style="font-size:11px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;">${label}</div></div>`;
+                const gap = r.without_an_amount;
+                body.innerHTML = `
+                    <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:12px;">
+                        ${stat(r.total, 'rentals in period')}
+                        ${stat('$' + r.collected.toLocaleString(undefined, {minimumFractionDigits:2}), 'collected')}
+                        ${stat(r.marked_paid, 'marked paid')}
+                        ${stat(r.upcoming, 'upcoming')}
+                    </div>
+                    <table class="data-table" style="max-width:460px;">
+                        <tr><td>Booked (value on the calendar)</td><td style="text-align:right">$${r.booked.toLocaleString(undefined, {minimumFractionDigits:2})}</td></tr>
+                        <tr><td>Marked paid &mdash; with an amount recorded</td><td style="text-align:right">${r.with_an_amount} of ${r.marked_paid}</td></tr>
+                        ${Object.keys(st).length ? `<tr><td>By status</td><td style="text-align:right">${Object.entries(st).map(([k,v]) => `${k}: ${v}`).join(' &middot; ')}</td></tr>` : ''}
+                    </table>
+                    ${gap ? `<p style="color:var(--red);font-size:13px;margin:10px 0 4px;">
+                        <b>${gap} rental${gap === 1 ? ' was' : 's were'} marked paid with no amount recorded.</b>
+                        Add what was collected on each so the books can be reconciled.</p>
+                        <table class="data-table" style="max-width:560px;"><tr><th>Date</th><th>Event</th><th>Contact</th><th></th></tr>` +
+                        r.unrecorded.map(u => `<tr><td>${u.event_date}</td><td>${escapeHtml(u.event_type||'')}</td>
+                            <td>${escapeHtml(u.contact_name||'')}</td>
+                            <td style="text-align:right"><button class="btn btn-secondary btn-sm" onclick="viewRental(${u.id})">Open</button></td></tr>`).join('') +
+                        `</table>` : '<p style="color:#2f6b2f;font-size:13px;margin-top:8px;">Every paid rental has an amount recorded. ✓</p>'}`;
+            } catch (e) {
+                body.innerHTML = `<span style="color:var(--red);">Could not load the summary: ${escapeHtml(e.message || String(e))}</span>`;
+            }
+        }
+
         async function loadRentals() {
+            loadRentalSummary(true);   // keep the collections summary in step with the table
             const [rentals, shifts] = await Promise.all([
                 api('/api/admin/rentals'),
                 // from=1970: the shifts endpoint defaults to upcoming-only, which would
