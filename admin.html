@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260913-1"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260914-1"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -314,10 +314,15 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        /* Thirteen pages now, and more as sections get added. They wrap onto a
+           second row rather than squeezing or sliding out of sight: an officer
+           who cannot see a tab does not know the page exists, and a sideways
+           scroll with nothing to show for it is no better than hiding it. */
         .tabs {
             background: var(--white);
             border-bottom: 1px solid var(--gray-200);
             display: flex;
+            flex-wrap: wrap;
             padding: 0 30px;
             box-shadow: var(--shadow-sm);
         }
@@ -326,6 +331,8 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            flex: 0 0 auto;          /* never squeeze a name down to nothing */
+            white-space: nowrap;     /* and never break one across two lines */
             padding: 15px 24px;
             border: none;
             background: none;
@@ -645,15 +652,12 @@
             }
 
             .tabs {
-                overflow-x: auto;
                 padding: 0 10px;
-                -webkit-overflow-scrolling: touch;
             }
 
             .tab {
-                padding: 12px 15px;
+                padding: 12px 14px;
                 font-size: 14px;
-                white-space: nowrap;
             }
 
             .content {
