@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260914-1"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260918-1"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1455,8 +1455,27 @@
 
                 <div class="subpanel" id="finSubOfficer">
                     <div style="background:#eaf5ea;border:1px solid #b7ddb7;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#2f6b2f;">
-                        <strong>Live report.</strong> Rendered from the current ledger — the profit &amp; loss and balance sheet an officer presents, across all operating accounts. Pick a period and Show.
+                        <strong>Live report.</strong> The eight-section Finance Officer Report, rendered from the current ledger across all operating accounts. Sections 1&ndash;4 and 6 are the figures; what you write below becomes sections 5 and 7.
                     </div>
+                    <details id="finOffNotes" style="border:1px solid #d6dbe3;border-radius:8px;margin-bottom:14px;background:#fff;">
+                        <summary style="padding:11px 14px;cursor:pointer;font-weight:600;color:var(--navy);">
+                            <i class="fas fa-pen-to-square"></i> What you want the meeting to know
+                            <span class="small" style="font-weight:400;color:var(--gray-600);">&mdash; concerns, notes and anything to discuss</span>
+                        </summary>
+                        <div style="padding:0 14px 14px;">
+                            <p class="small" style="color:var(--gray-600);margin:0 0 10px;">Saved against this period only, so last quarter's concerns don't reappear on this quarter's report. Leave a box empty and that section prints as &ldquo;none recorded&rdquo;.</p>
+                            <div class="form-group"><label for="finOffConcerns">Open concerns &mdash; section 5</label>
+                                <textarea id="finOffConcerns" rows="3" placeholder="Bills outstanding, anything unresolved the meeting should hear about."></textarea></div>
+                            <div class="form-group"><label for="finOffNotesBody">Financial notes / comments &mdash; section 7</label>
+                                <textarea id="finOffNotesBody" rows="3" placeholder="How the period went, what moved and why."></textarea></div>
+                            <div class="form-group"><label for="finOffDiscussion">Topics for discussion / clarification</label>
+                                <textarea id="finOffDiscussion" rows="3" placeholder="Questions for the floor: rate changes, a decision you need, something you want confirmed."></textarea></div>
+                            <div class="form-group"><label for="finOffSubsequent">Subsequent events <span class="small" style="font-weight:400;">(after the period closed)</span></label>
+                                <textarea id="finOffSubsequent" rows="2" placeholder="An invoice that arrived after the period end, for example. Prints as a flagged block."></textarea></div>
+                            <button class="btn btn-secondary btn-sm" onclick="saveOfficerNotes()"><i class="fas fa-floppy-disk"></i> Save &amp; refresh the report</button>
+                            <span id="finOffNotesMsg" class="small" style="margin-left:10px;"></span>
+                        </div>
+                    </details>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
                         <div><label class="small" for="finOffFrom">From</label><br><input type="date" id="finOffFrom" class="form-input" style="max-width:170px;"></div>
                         <div><label class="small" for="finOffTo">To</label><br><input type="date" id="finOffTo" class="form-input" style="max-width:170px;"></div>
@@ -2642,6 +2661,43 @@
         // Bearer token and rendered in an isolated, same-origin iframe so its styles
         // never collide with the admin panel. Content is never stored in this repo.
         let financeLoaded = false;
+        // Sections 5 and 7 of the officer's report are not computed from
+        // anything — they are what the finance officer wants the meeting to
+        // know, and they are saved against this period alone.
+        const OFFICER_NOTE_FIELDS = {
+            concerns: 'finOffConcerns', notes: 'finOffNotesBody',
+            discussion: 'finOffDiscussion', subsequent: 'finOffSubsequent',
+        };
+
+        async function loadOfficerNotes(from, to) {
+            try {
+                const r = await finApi(`/api/admin/finance/report-notes?from=${from}&to=${to}`);
+                for (const [key, id] of Object.entries(OFFICER_NOTE_FIELDS)) {
+                    document.getElementById(id).value = r[key] || '';
+                }
+            } catch (e) { /* the report itself still renders; leave the boxes as they are */ }
+        }
+
+        async function saveOfficerNotes() {
+            const msg = document.getElementById('finOffNotesMsg');
+            const body = {
+                from: document.getElementById('finOffFrom').value,
+                to: document.getElementById('finOffTo').value,
+            };
+            if (!body.from || !body.to) { msg.textContent = 'Pick a period first.'; return; }
+            for (const [key, id] of Object.entries(OFFICER_NOTE_FIELDS)) {
+                body[key] = document.getElementById(id).value;
+            }
+            msg.textContent = 'Saving…';
+            try {
+                await finApi('/api/admin/finance/report-notes',
+                    { method: 'PUT', body: JSON.stringify(body) });
+                msg.textContent = 'Saved — the report below now carries it.';
+                financeLoaded = false;
+                await loadFinanceReport(true);
+            } catch (e) { msg.textContent = e.message || 'Could not save.'; }
+        }
+
         async function loadFinanceReport(force = false) {
             const loading = document.getElementById('financeLoading');
             const errEl = document.getElementById('financeError');
@@ -2652,6 +2708,7 @@
             if (!toEl.value) toEl.value = new Date().toISOString().slice(0, 10);
             if (!fromEl.value) fromEl.value = toEl.value.slice(0, 4) + '-01-01';
             if (financeLoaded && !force) return;
+            loadOfficerNotes(fromEl.value, toEl.value);
             loading.style.display = 'block';
             errEl.style.display = 'none';
             frame.style.display = 'none';
