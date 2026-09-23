@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel – Somerset American Legion Post 228</title>
-    <meta name="build" content="admin-20260918-1"><!-- bump on every admin.html change; drives auto-update -->
+    <meta name="build" content="admin-20260923-1"><!-- bump on every admin.html change; drives auto-update -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1472,6 +1472,8 @@
                                 <textarea id="finOffDiscussion" rows="3" placeholder="Questions for the floor: rate changes, a decision you need, something you want confirmed."></textarea></div>
                             <div class="form-group"><label for="finOffSubsequent">Subsequent events <span class="small" style="font-weight:400;">(after the period closed)</span></label>
                                 <textarea id="finOffSubsequent" rows="2" placeholder="An invoice that arrived after the period end, for example. Prints as a flagged block."></textarea></div>
+                            <div class="form-group"><label for="finOffControls">Agreed controls in force <span class="small" style="font-weight:400;">(carried onto every report until the meeting changes them)</span></label>
+                                <textarea id="finOffControls" rows="4" placeholder="1. A cash ledger is written up weekly.&#10;2. Hall rentals are booked on the admin site.&#10;3. Spending over $500 is reviewed by the finance committee before it is paid."></textarea></div>
                             <button class="btn btn-secondary btn-sm" onclick="saveOfficerNotes()"><i class="fas fa-floppy-disk"></i> Save &amp; refresh the report</button>
                             <span id="finOffNotesMsg" class="small" style="margin-left:10px;"></span>
                         </div>
@@ -2667,6 +2669,7 @@
         const OFFICER_NOTE_FIELDS = {
             concerns: 'finOffConcerns', notes: 'finOffNotesBody',
             discussion: 'finOffDiscussion', subsequent: 'finOffSubsequent',
+            controls: 'finOffControls',
         };
 
         async function loadOfficerNotes(from, to) {
